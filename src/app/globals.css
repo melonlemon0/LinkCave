@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --moo-cream: #f5f5f7;
+  --moo-brown: #6e6e73;
+  --moo-dark: #1d1d1f;
+  --moo-accent: #0071e3;
+}
+
+body {
+  @apply bg-moo-cream text-moo-dark font-cute antialiased;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Drag preview */
+.link-card-dragging {
+  opacity: 0.9;
+  transform: scale(1.02);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.drop-target-active {
+  @apply ring-2 ring-moo-accent/50 ring-offset-2 ring-offset-[#f5f5f7] rounded-xl;
+}
