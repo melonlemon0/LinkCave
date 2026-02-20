@@ -36,9 +36,26 @@ Save links in one place with thumbnails and folders. Web + mobile friendly; Goog
    ```
    Open [http://localhost:3000](http://localhost:3000). Sign in with Google, then add links and folders.
 
-## Deploy to the world (Vercel + linkcave.org)
+## Deploy to the world
 
-### 1. Deploy to Vercel
+### 방법 A: Netlify (추천 — 설정 단순)
+
+1. **코드를 GitHub에 푸시** (이미 했다면 생략)
+2. [netlify.com](https://www.netlify.com) 접속 → **Sign up** (GitHub로 로그인 가능)
+3. **Add new site** → **Import an existing project** → **Deploy with GitHub**
+4. GitHub 권한 허용 후 **저장소 선택** (예: link-cave)
+5. **Build settings** (그대로 두어도 됨):
+   - Build command: `npm run build`
+   - Publish directory: (비워두거나 `.next` — Netlify가 Next.js 인식)
+6. **Environment variables** → **Add a variable** → **Add single variable**:
+   - Key: `NEXT_PUBLIC_SUPABASE_URL` / Value: (Supabase Project URL)
+   - Key: `NEXT_PUBLIC_SUPABASE_ANON_KEY` / Value: (Supabase anon key)
+7. **Deploy site** 클릭
+8. 배포 끝나면 **Site settings** → **Domain management** → **Add custom domain** → `linkcave.org` 입력 후 DNS 안내 따르기
+9. **Supabase** → Authentication → URL Configuration: Site URL = `https://linkcave.org`, Redirect URLs에 `https://linkcave.org/**`, `https://linkcave.org/auth/callback` 추가
+10. **Google Cloud Console** → Credentials → OAuth 2.0 → Authorized JavaScript origins에 `https://linkcave.org` 추가
+
+### 방법 B: Vercel
 
 1. Push your code to GitHub (if you haven’t).
 2. Go to [vercel.com](https://vercel.com) → **Add New** → **Project** → import your repo.
