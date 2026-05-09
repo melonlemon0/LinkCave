@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { Folder, Link } from "@/types/db";
 
 /** Take a single URL from input (first line; if pasted twice without newline, take first URL only). */
 function getSingleUrl(input: string): string {
@@ -11,13 +10,17 @@ function getSingleUrl(input: string): string {
     new URL(firstLine);
     return firstLine;
   } catch {
-    // Duplicated URL pasted without newline: find first URL and stop before the second
-    const protocol = firstLine.startsWith("https://") ? "https://" : firstLine.startsWith("http://") ? "http://" : null;
+    const protocol = firstLine.startsWith("https://")
+      ? "https://"
+      : firstLine.startsWith("http://")
+        ? "http://"
+        : null;
     if (protocol) {
       const rest = firstLine.slice(protocol.length);
       const nextStart = rest.indexOf("https://");
       const nextStartHttp = rest.indexOf("http://");
-      const next = nextStart === -1 ? nextStartHttp : nextStartHttp === -1 ? nextStart : Math.min(nextStart, nextStartHttp);
+      const next =
+        nextStart === -1 ? nextStartHttp : nextStartHttp === -1 ? nextStart : Math.min(nextStart, nextStartHttp);
       const single = next === -1 ? firstLine : protocol + rest.slice(0, next);
       try {
         new URL(single);
@@ -30,13 +33,46 @@ function getSingleUrl(input: string): string {
   return firstLine;
 }
 
+function normalizeLinkUrl(url: string): string {
+  const firstLine = url.trim().split(/\r?\n/)[0]?.trim() ?? "";
+  if (!firstLine) return url;
+  try {
+    let single = firstLine;
+    if (firstLine.includes("https://") || firstLine.includes("http://")) {
+      const protocol = firstLine.startsWith("https://")
+        ? "https://"
+        : firstLine.startsWith("http://")
+          ? "http://"
+          : null;
+      if (protocol) {
+        const rest = firstLine.slice(protocol.length);
+        const next = Math.min(
+          rest.indexOf("https://") === -1 ? 1e9 : rest.indexOf("https://"),
+          rest.indexOf("http://") === -1 ? 1e9 : rest.indexOf("http://")
+        );
+        single = next > 0 && next < 1e9 ? protocol + rest.slice(0, next) : firstLine;
+      }
+    }
+    const u = new URL(single);
+    if ((u.hostname === "youtu.be" || u.hostname.includes("youtube.com")) && u.pathname.startsWith("/shorts/")) {
+      const id = u.pathname.replace(/^\/shorts\//, "").split("/")[0].split("?")[0];
+      if (id) return `https://www.youtube.com/watch?v=${id}`;
+    }
+    if (u.hostname === "youtu.be" && u.pathname.length > 1) {
+      const id = u.pathname.slice(1).split("/")[0].split("?")[0];
+      if (id) return `https://www.youtube.com/watch?v=${id}`;
+    }
+    return single;
+  } catch {
+    return firstLine;
+  }
+}
+
 type Props = {
-  currentFolderId: string | null;
-  onLinkAdded: (link: Link) => void;
-  folders: Folder[];
+  onAdd: (input: { url: string; title: string; thumbnailUrl: string | null }) => Promise<void>;
 };
 
-export function AddLinkForm({ currentFolderId, onLinkAdded, folders }: Props) {
+export function AddLinkForm({ onAdd }: Props) {
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +80,12 @@ export function AddLinkForm({ currentFolderId, onLinkAdded, folders }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const raw = getSingleUrl(url);
-    if (!raw || !currentFolderId) return;
+    if (!raw) return;
     setError(null);
     setSaving(true);
     try {
       let title = new URL(raw).hostname;
-      let thumbnail_url: string | null = null;
+      let thumbnailUrl: string | null = null;
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 4000);
@@ -58,26 +94,18 @@ export function AddLinkForm({ currentFolderId, onLinkAdded, folders }: Props) {
         });
         clearTimeout(timeout);
         if (metaRes.ok) {
-          const data = await metaRes.json();
+          const data = (await metaRes.json()) as { title?: string; thumbnail_url?: string | null };
           title = data.title ?? title;
-          thumbnail_url = data.thumbnail_url ?? null;
+          thumbnailUrl = data.thumbnail_url ?? null;
         }
       } catch {
-        // Use hostname and no thumbnail if metadata fails or times out
+        // hostname fallback
       }
-      const res = await fetch("/api/links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          folder_id: currentFolderId,
-          url: raw,
-          title,
-          thumbnail_url,
-        }),
+      await onAdd({
+        url: normalizeLinkUrl(raw),
+        title,
+        thumbnailUrl,
       });
-      const link = await res.json();
-      if (!res.ok) throw new Error(link.error ?? "Failed to save link");
-      onLinkAdded(link as Link);
       setUrl("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -98,13 +126,13 @@ export function AddLinkForm({ currentFolderId, onLinkAdded, folders }: Props) {
           const text = e.clipboardData?.getData("text")?.trim();
           if (text) setUrl(getSingleUrl(text));
         }}
-        placeholder="Paste link and save"
+        placeholder="Paste a link into the fridge"
         className="flex-1 min-w-[180px] px-4 py-3 rounded-xl bg-white text-moo-dark placeholder:text-moo-brown/60 border border-black/8 shadow-apple focus:outline-none focus:ring-2 focus:ring-moo-accent/50 focus:border-transparent"
         disabled={saving}
       />
       <button
         type="submit"
-        disabled={saving || !url.trim() || !currentFolderId}
+        disabled={saving || !url.trim()}
         className="px-5 py-3 rounded-xl bg-moo-accent text-white font-medium disabled:opacity-50 hover:enabled:bg-[#0077ed] transition-colors"
       >
         {saving ? "Saving…" : "Save"}

@@ -1,0 +1,142 @@
+import {
+  addDoc,
+  arrayUnion,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
+  where,
+  type DocumentData,
+  type Unsubscribe,
+} from "firebase/firestore";
+import { TRASH_RETENTION_MS, type FridgeLink } from "@/types/linkfridge";
+import { getFirestoreDb } from "./config";
+
+function linksCol(uid: string) {
+  return collection(getFirestoreDb(), "users", uid, "links");
+}
+
+export function mapLinkDoc(id: string, data: DocumentData): FridgeLink {
+  const createdAt =
+    data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now();
+  const trashedAt =
+    data.trashedAt instanceof Timestamp ? data.trashedAt.toMillis() : data.trashedAt ?? null;
+  const offsets = Array.isArray(data.reminderFiredOffsets)
+    ? data.reminderFiredOffsets.filter((n: unknown) => typeof n === "number")
+    : [];
+  return {
+    id,
+    url: String(data.url ?? ""),
+    title: String(data.title ?? ""),
+    thumbnailUrl:
+      data.thumbnailUrl === null || data.thumbnailUrl === undefined
+        ? null
+        : String(data.thumbnailUrl),
+    createdAt,
+    state: data.state === "trashed" ? "trashed" : "active",
+    trashedAt: typeof trashedAt === "number" ? trashedAt : null,
+    sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
+    reminderFiredOffsets: offsets,
+  };
+}
+
+export function subscribeActiveLinks(
+  uid: string,
+  onLinks: (links: FridgeLink[]) => void
+): Unsubscribe {
+  const q = query(
+    linksCol(uid),
+    where("state", "==", "active"),
+    orderBy("createdAt", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    onLinks(snap.docs.map((d) => mapLinkDoc(d.id, d.data())));
+  });
+}
+
+export function subscribeTrashedLinks(
+  uid: string,
+  onLinks: (links: FridgeLink[]) => void
+): Unsubscribe {
+  const q = query(
+    linksCol(uid),
+    where("state", "==", "trashed"),
+    orderBy("trashedAt", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    onLinks(snap.docs.map((d) => mapLinkDoc(d.id, d.data())));
+  });
+}
+
+export async function addUserLink(
+  uid: string,
+  input: { url: string; title: string; thumbnailUrl: string | null }
+): Promise<string> {
+  const ref = await addDoc(linksCol(uid), {
+    url: input.url,
+    title: input.title,
+    thumbnailUrl: input.thumbnailUrl,
+    state: "active",
+    trashedAt: null,
+    sortOrder: Date.now(),
+    reminderFiredOffsets: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateLinkTitle(uid: string, linkId: string, title: string): Promise<void> {
+  await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
+    title: title.slice(0, 500),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function softTrashLink(uid: string, linkId: string): Promise<void> {
+  await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
+    state: "trashed",
+    trashedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function restoreLink(uid: string, linkId: string): Promise<void> {
+  await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
+    state: "active",
+    trashedAt: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function recordReminderFired(
+  uid: string,
+  linkId: string,
+  offset: number
+): Promise<void> {
+  await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
+    reminderFiredOffsets: arrayUnion(offset),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Permanently remove trashed links older than retention window. */
+export async function purgeExpiredTrash(uid: string): Promise<void> {
+  const cutoff = Date.now() - TRASH_RETENTION_MS;
+  const q = query(linksCol(uid), where("state", "==", "trashed"));
+  const snap = await getDocs(q);
+  const db = getFirestoreDb();
+  for (const d of snap.docs) {
+    const data = d.data();
+    const trashedAt = data.trashedAt instanceof Timestamp ? data.trashedAt.toMillis() : null;
+    if (typeof trashedAt === "number" && trashedAt < cutoff) {
+      await deleteDoc(doc(db, "users", uid, "links", d.id));
+    }
+  }
+}

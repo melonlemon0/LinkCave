@@ -1,111 +1,57 @@
-# Link Cave
+# LinkFridge
 
-Save links in one place with thumbnails and folders. Web + mobile friendly; Google sign-in only.
-
-## Features
-
-- **Save links** — Paste URL, get title + thumbnail (like YouTube). No link shown after save; just thumbnail + title.
-- **Folders** — Create and edit folders (name + emoji). e.g. Yoga videos 🧘, Meditation 🧘, Articles 📖, Ukulele tutorials 🎸, Blogs ✍️.
-- **Grid** — 5 thumbnails per row (responsive: 2–5 columns), many rows. Drag a thumbnail onto a folder to move it.
-- **One account** — Google login; sync on web and in the app (PWA / Add to Home Screen).
+Save links with thumbnails in the **cloud** (Firebase). Sign in with **Google**. **Fridge** and **Trash** tabs, **30-day trash recovery**, and **reminder nudges** (default day 3 and day 5 after save — configurable in Settings). Browser notifications work if the user allows them.
 
 ## Setup
 
 1. **Clone and install**
+
    ```bash
    cd "link app"
    npm install
    ```
 
-2. **Supabase**
-   - Create a project at [supabase.com](https://supabase.com).
-   - In SQL Editor, run `supabase/schema.sql`.
-   - In Authentication → Providers, enable **Google** and add your Google OAuth client ID and secret (create OAuth credentials in Google Cloud Console; set redirect URL to `https://<project-ref>.supabase.co/auth/v1/callback`).
-   - Copy project URL and anon key into `.env.local`:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+2. **Firebase**
+
+   - Create a project at [Firebase Console](https://console.firebase.google.com).
+   - **Authentication** → Sign-in method → enable **Google**.
+   - **Firestore** → Create database (production mode is fine once rules are deployed).
+   - **Project settings** (gear) → Your apps → **Web** app → copy the config values.
+   - Copy `.env.local.example` to `.env.local` and paste the keys (all `NEXT_PUBLIC_FIREBASE_*` values).
+
+3. **Firestore security rules**
+
+   Deploy the rules in `firestore.rules` so only the signed-in user can read/write their `users/{uid}` doc and `users/{uid}/links/*`:
+
+   ```bash
+   npm install -g firebase-tools   # if needed
+   firebase login
+   firebase init firestore         # select this repo, use existing firestore.rules / firestore.indexes.json
+   firebase deploy --only firestore
    ```
 
-3. **PWA icons** (optional)  
-   Add `public/icon-192.png` and `public/icon-512.png` for install icon and splash. Any 192×192 and 512×512 PNGs (e.g. a cute cow or paw) work.
+   The first time you run queries, Firebase may prompt you to create composite indexes; `firestore.indexes.json` already lists the ones used by this app (`state` + `createdAt`, `state` + `trashedAt` on `links`).
 
 4. **Run**
+
    ```bash
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000). Sign in with Google, then add links and folders.
 
-## Deploy to the world
+   Open [http://localhost:3005](http://localhost:3005) (see `package.json` dev port), sign in with Google, then save links.
 
-### 방법 A: Netlify (추천 — 설정 단순)
+5. **PWA icons** (optional)
 
-1. **코드를 GitHub에 푸시** (이미 했다면 생략)
-2. [netlify.com](https://www.netlify.com) 접속 → **Sign up** (GitHub로 로그인 가능)
-3. **Add new site** → **Import an existing project** → **Deploy with GitHub**
-4. GitHub 권한 허용 후 **저장소 선택** (예: link-cave)
-5. **Build settings** (그대로 두어도 됨):
-   - Build command: `npm run build`
-   - Publish directory: (비워두거나 `.next` — Netlify가 Next.js 인식)
-6. **Environment variables** → **Add a variable** → **Add single variable**:
-   - Key: `NEXT_PUBLIC_SUPABASE_URL` / Value: (Supabase Project URL)
-   - Key: `NEXT_PUBLIC_SUPABASE_ANON_KEY` / Value: (Supabase anon key)
-7. **Deploy site** 클릭
-8. 배포 끝나면 **Site settings** → **Domain management** → **Add custom domain** → `linkcave.org` 입력 후 DNS 안내 따르기
-9. **Supabase** → Authentication → URL Configuration: Site URL = `https://linkcave.org`, Redirect URLs에 `https://linkcave.org/**`, `https://linkcave.org/auth/callback` 추가
-10. **Google Cloud Console** → Credentials → OAuth 2.0 → Authorized JavaScript origins에 `https://linkcave.org` 추가
+   Add `public/icon-192.png` and `public/icon-512.png` for install icons.
 
-### 방법 B: Vercel
+## Deploy (Vercel)
 
-1. Push your code to GitHub (if you haven’t).
-2. Go to [vercel.com](https://vercel.com) → **Add New** → **Project** → import your repo.
-3. **Root Directory:** leave default (or set to the folder that contains `package.json`).
-4. **Environment Variables:** add the same ones you use locally:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-5. Click **Deploy**. Wait for the build to finish (you’ll get a `*.vercel.app` URL).
+- Connect the repo to [Vercel](https://vercel.com).
+- Add the same `NEXT_PUBLIC_FIREBASE_*` environment variables in the project settings.
+- In Firebase **Authentication** → **Settings** → **Authorized domains**, add your Vercel domain (e.g. `your-app.vercel.app`).
 
-### 2. Add custom domain linkcave.org
+## Stack
 
-1. In Vercel: your project → **Settings** → **Domains**.
-2. Add **linkcave.org** (and **www.linkcave.org** if you want).
-3. Vercel will show the DNS records you need (usually **A** or **CNAME**).
-
-### 3. Point your domain to Vercel (DNS)
-
-At the place where you manage **linkcave.org** (e.g. GoDaddy, Namecheap, Cloudflare):
-
-- **If Vercel says to use A records:** add an **A** record for `@` (or `linkcave.org`) with the IP Vercel gives you. For **www**, add a **CNAME** for `www` → `cname.vercel-dns.com` (or what Vercel shows).
-- **If Vercel says to use CNAME:** add **CNAME** for `@` (or `www`) to `cname.vercel-dns.com` (or the exact target Vercel shows).
-
-Save, then wait 5–60 minutes. In Vercel **Domains**, the domain should turn green when it’s working.
-
-### 4. Supabase: production URL
-
-1. [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Authentication** → **URL Configuration**.
-2. **Site URL:** set to `https://linkcave.org` (or `https://www.linkcave.org` if you use www).
-3. **Redirect URLs:** add:
-   - `https://linkcave.org/**`
-   - `https://linkcave.org/auth/callback`
-   - If you use www: `https://www.linkcave.org/**` and `https://www.linkcave.org/auth/callback`
-4. Save.
-
-### 5. Google OAuth: allow linkcave.org
-
-1. [Google Cloud Console](https://console.cloud.google.com) → your project → **APIs & Services** → **Credentials**.
-2. Open your **OAuth 2.0 Client ID** (Web application).
-3. **Authorized JavaScript origins:** add:
-   - `https://linkcave.org`
-   - `https://www.linkcave.org` (if you use www)
-4. **Authorized redirect URIs:** you only need the Supabase callback (e.g. `https://<your-project-ref>.supabase.co/auth/v1/callback`). No need to add linkcave.org here.
-5. Save.
-
-### 6. Test
-
-- Open **https://linkcave.org** (or https://www.linkcave.org).
-- Click **Sign in with Google** and complete login.
-- Add a link and a folder to confirm everything works.
-
-## Name & domain
-
-Service name: **Link Cave**. Production domain: **linkcave.org**.
+- Next.js (App Router) + Vercel
+- Firebase Auth (Google) + Firestore
+- Free tier friendly for early usage; scale Firestore reads/writes as you grow.

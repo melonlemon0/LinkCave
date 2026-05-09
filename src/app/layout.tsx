@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Link Cave — Your links deserve a cave",
-  description: "Save links as thumbnails, organize in folders. Your links deserve a cave.",
+  title: "LinkFridge — Chill your links",
+  description:
+    "Save links in the cloud with Gmail. Gentle reminders so saved links do not get forgotten.",
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Link Cave" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "LinkFridge" },
 };
 
 export const viewport: Viewport = {
@@ -23,7 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

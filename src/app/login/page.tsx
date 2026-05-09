@@ -1,12 +1,13 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/firebase/auth-context";
+import { isDemoSignedIn, signInDemo } from "@/lib/local/demo-store";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-function GoogleLogo() {
+function GoogleMark() {
   return (
-    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" aria-hidden>
+    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
       <path
         fill="#4285F4"
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -29,43 +30,101 @@ function GoogleLogo() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, loading, configured, signInWithGoogle, signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    createClient().auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace("/");
-    });
-  }, [router]);
+    if (loading) return;
+    if (isDemoSignedIn()) {
+      router.replace("/");
+      return;
+    }
+    if (user) router.replace("/");
+  }, [loading, user, router]);
 
-  async function signInWithGoogle() {
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${location.origin}/auth/callback` },
-    });
+  async function onGoogle() {
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithGoogle();
+      router.replace("/");
+      router.refresh();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Sign-in failed";
+      setError(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDemo() {
+    setBusy(true);
+    setError(null);
+    try {
+      try {
+        await signOut();
+      } catch {
+        /* ignore if not signed in */
+      }
+      signInDemo();
+      router.replace("/");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-moo-cream text-moo-brown">
+        Loading…
+      </main>
+    );
   }
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-moo-cream">
-      <div className="text-center max-w-sm">
-        <img
-          src="/ha.png"
-          alt="Link Cave"
-          className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-6 rounded-2xl object-cover shadow-apple"
-        />
-        <h1 className="text-3xl font-semibold text-moo-dark tracking-tight mb-3">
-          Link Cave
-        </h1>
-        <p className="text-moo-brown text-lg mb-10">
-          Your links deserve a cave.
+      <div className="text-center max-w-sm w-full">
+        <p className="text-5xl mb-4" aria-hidden>
+          🧊
         </p>
+        <h1 className="text-3xl font-semibold text-moo-dark tracking-tight mb-2">LinkFridge</h1>
+        <p className="text-moo-brown text-base mb-6">
+          Save links with reminders. Cloud sync with Google, or try locally on this device.
+        </p>
+
+        {!configured && (
+          <p className="text-sm text-moo-brown mb-6 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+            Firebase env vars are missing — Google sign-in is unavailable. You can still use{" "}
+            <strong className="text-moo-dark">Demo (local)</strong> below.
+          </p>
+        )}
+
+        {configured && (
+          <button
+            type="button"
+            onClick={() => void onGoogle()}
+            disabled={busy}
+            className="w-full flex items-center justify-center gap-3 py-3.5 px-5 rounded-xl bg-white text-gray-800 font-medium shadow-apple border border-black/8 hover:bg-gray-50/80 hover:shadow-apple-lg transition-all duration-200 disabled:opacity-60 mb-3"
+          >
+            <GoogleMark />
+            <span>{busy ? "Signing in…" : "Continue with Google"}</span>
+          </button>
+        )}
+
         <button
           type="button"
-          onClick={signInWithGoogle}
-          className="w-full flex items-center justify-center gap-3 py-3.5 px-5 rounded-xl bg-white text-gray-800 font-medium shadow-apple border border-black/8 hover:bg-gray-50/80 hover:shadow-apple-lg transition-all duration-200"
+          onClick={() => void onDemo()}
+          disabled={busy}
+          className="w-full py-3.5 px-5 rounded-xl bg-moo-dark text-white font-medium shadow-apple hover:opacity-90 transition disabled:opacity-60"
         >
-          <GoogleLogo />
-          <span>Sign in with Google</span>
+          Try demo (local storage)
         </button>
+        <p className="text-xs text-moo-brown mt-3">
+          Demo keeps links in this browser only. Nothing is sent to the cloud.
+        </p>
+
+        {error && <p className="mt-4 text-sm text-red-600 text-left">{error}</p>}
       </div>
     </main>
   );

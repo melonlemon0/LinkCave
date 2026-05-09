@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as cheerio from "cheerio";
 
 const FETCH_OPTIONS = {
   headers: {
@@ -165,14 +164,13 @@ async function fetchAppleMusicMetadata(
     const res = await fetch(url, FETCH_OPTIONS);
     if (!res.ok) return null;
     const html = await res.text();
-    const $ = cheerio.load(html);
     const title =
-      $('meta[property="og:title"]').attr("content") ||
-      $("title").text() ||
+      extractMetaContent(html, "property", "og:title") ||
+      extractTagText(html, "title") ||
       "Apple Music";
     const thumbnail =
-      $('meta[property="og:image"]').attr("content") ||
-      $('meta[name="twitter:image"]').attr("content") ||
+      extractMetaContent(html, "property", "og:image") ||
+      extractMetaContent(html, "name", "twitter:image") ||
       null;
     const thumbnail_url = thumbnail ? new URL(thumbnail, url).href : null;
     return {
@@ -190,19 +188,40 @@ async function fetchHtmlMetadata(
   const res = await fetch(url, FETCH_OPTIONS);
   if (!res.ok) throw new Error("Fetch failed");
   const html = await res.text();
-  const $ = cheerio.load(html);
   const title =
-    $('meta[property="og:title"]').attr("content") ||
-    $('meta[name="twitter:title"]').attr("content") ||
-    $("title").text() ||
+    extractMetaContent(html, "property", "og:title") ||
+    extractMetaContent(html, "name", "twitter:title") ||
+    extractTagText(html, "title") ||
     new URL(url).hostname;
   const thumbnail =
-    $('meta[property="og:image"]').attr("content") ||
-    $('meta[name="twitter:image"]').attr("content") ||
+    extractMetaContent(html, "property", "og:image") ||
+    extractMetaContent(html, "name", "twitter:image") ||
     null;
   const absoluteThumb = thumbnail ? new URL(thumbnail, url).href : null;
   return {
     title: title.trim().slice(0, 200) || "Link",
     thumbnail_url: absoluteThumb,
   };
+}
+
+function extractMetaContent(
+  html: string,
+  attr: "name" | "property",
+  value: string
+): string | null {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(
+    `<meta[^>]*${attr}\\s*=\\s*["']${escaped}["'][^>]*content\\s*=\\s*["']([^"']+)["'][^>]*>`,
+    "i"
+  );
+  const reverseRegex = new RegExp(
+    `<meta[^>]*content\\s*=\\s*["']([^"']+)["'][^>]*${attr}\\s*=\\s*["']${escaped}["'][^>]*>`,
+    "i"
+  );
+  return regex.exec(html)?.[1]?.trim() || reverseRegex.exec(html)?.[1]?.trim() || null;
+}
+
+function extractTagText(html: string, tagName: "title"): string | null {
+  const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i");
+  return regex.exec(html)?.[1]?.replace(/\s+/g, " ").trim() || null;
 }

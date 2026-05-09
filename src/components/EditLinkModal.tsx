@@ -26,13 +26,6 @@ export function EditLinkModal({ link, onSave, onRemove, onClose }: Props) {
     setError(null);
     setSaving(true);
     try {
-      const res = await fetch(`/api/links/${link.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: t }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to update");
       await onSave(link.id, t);
       onClose();
     } catch (e) {
@@ -43,15 +36,10 @@ export function EditLinkModal({ link, onSave, onRemove, onClose }: Props) {
   }
 
   async function handleRemove() {
-    if (!confirm("Remove this link?")) return;
+    if (!confirm("Move this link to trash? You can restore it within 30 days.")) return;
     setError(null);
     setRemoving(true);
     try {
-      const res = await fetch(`/api/links/${link.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to remove");
-      }
       await onRemove(link.id);
       onClose();
     } catch (e) {
@@ -85,7 +73,7 @@ export function EditLinkModal({ link, onSave, onRemove, onClose }: Props) {
             disabled={saving || removing}
             className="py-2 px-4 rounded-xl text-red-600 hover:bg-red-50 disabled:opacity-50"
           >
-            {removing ? "Removing…" : "Remove link"}
+            {removing ? "Moving…" : "Move to trash"}
           </button>
           <div className="flex-1" />
           <button type="button" onClick={onClose} className="py-2 px-4 rounded-xl text-moo-brown hover:bg-moo-brown/10">
