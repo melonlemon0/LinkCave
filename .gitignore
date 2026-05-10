@@ -27,5 +27,6 @@ Thumbs.db
 *.swp
 *.swo
 
-# Local Netlify folder
+# Local deploy tool folders
 .netlify
+.vercel

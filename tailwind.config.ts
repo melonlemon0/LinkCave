@@ -17,7 +17,9 @@ const config: Config = {
         },
       },
       fontFamily: {
-        cute: ["-apple-system", "BlinkMacSystemFont", "SF Pro Text", "Segoe UI", "system-ui", "sans-serif"],
+        /** Rounded, friendly UI — loaded via `next/font` in `layout.tsx` */
+        linkfridge: ["var(--font-linkfridge)", "Nunito", "system-ui", "sans-serif"],
+        cute: ["var(--font-linkfridge)", "Nunito", "system-ui", "sans-serif"],
       },
       boxShadow: {
         apple: "0 2px 8px rgba(0,0,0,0.04)",

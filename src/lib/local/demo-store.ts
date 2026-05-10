@@ -63,7 +63,12 @@ function normalizeDemoLink(raw: unknown): FridgeLink | null {
   const sortOrder =
     typeof sortRaw === "number" && Number.isFinite(sortRaw) ? sortRaw : createdAt;
 
-  const state = o.state === "trashed" ? "trashed" : "active";
+  const pinRaw = o.pinned;
+  const pinned = pinRaw === true || pinRaw === "true" || pinRaw === 1;
+
+  const rawState = o.state;
+  const state: FridgeLink["state"] =
+    rawState === "trashed" ? "trashed" : rawState === "frozen" ? "frozen" : "active";
 
   const trashedRaw = o.trashedAt ?? o.trashed_at;
   let trashedAt: number | null = null;
@@ -73,6 +78,19 @@ function normalizeDemoLink(raw: unknown): FridgeLink | null {
       const t = Date.parse(trashedRaw);
       if (!Number.isNaN(t)) trashedAt = t;
     }
+  }
+
+  const frozenRaw = o.frozenAt ?? o.frozen_at;
+  let frozenAt: number | null = null;
+  if (state === "frozen") {
+    if (typeof frozenRaw === "number" && Number.isFinite(frozenRaw)) frozenAt = frozenRaw;
+    else if (typeof frozenRaw === "string") {
+      const t = Date.parse(frozenRaw);
+      if (!Number.isNaN(t)) frozenAt = t;
+    }
+    if (frozenAt == null) frozenAt = createdAt;
+  } else {
+    frozenAt = null;
   }
 
   const ro = o.reminderFiredOffsets ?? o.reminder_fired_offsets;
@@ -88,7 +106,9 @@ function normalizeDemoLink(raw: unknown): FridgeLink | null {
     createdAt,
     state,
     trashedAt,
+    frozenAt,
     sortOrder,
+    pinned,
     reminderFiredOffsets,
   };
 }
@@ -113,12 +133,21 @@ export function loadDemoPayload(): DemoPayload {
   const raw = localStorage.getItem(DEMO_DATA_KEY);
   if (!raw) return defaultPayload();
   try {
-    const parsed = JSON.parse(raw) as DemoPayload;
+    const parsedUnknown = JSON.parse(raw) as unknown;
+    if (!parsedUnknown || typeof parsedUnknown !== "object" || Array.isArray(parsedUnknown)) {
+      return defaultPayload();
+    }
+    const parsed = parsedUnknown as DemoPayload;
     const rawLinks = Array.isArray(parsed.links) ? parsed.links : [];
     const links = purgeExpired(
       rawLinks.map(normalizeDemoLink).filter((l): l is FridgeLink => l != null)
     );
-    const settings = parsed.settings ?? defaultPayload().settings;
+    const defaults = defaultPayload();
+    const rawSettings = parsed.settings;
+    const settings: UserSettings =
+      rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings)
+        ? { ...defaults.settings, ...(rawSettings as UserSettings) }
+        : defaults.settings;
     const ro = settings.reminderDayOffsets;
     if (!Array.isArray(ro) || ro.length < 2) {
       settings.reminderDayOffsets = [...DEFAULT_REMINDER_OFFSETS];
@@ -133,7 +162,7 @@ export function loadDemoPayload(): DemoPayload {
     if (typeof settings.notificationsEnabled !== "boolean") {
       settings.notificationsEnabled = true;
     }
-    return { links, settings };
+    return { links, settings: { ...settings } };
   } catch {
     return defaultPayload();
   }
@@ -158,7 +187,9 @@ export function newDemoLink(input: {
     createdAt: Date.now(),
     state: "active",
     trashedAt: null,
+    frozenAt: null,
     sortOrder: Date.now(),
+    pinned: false,
     reminderFiredOffsets: [],
   };
 }

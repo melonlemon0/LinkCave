@@ -46,9 +46,13 @@ Save links with thumbnails in the **cloud** (Firebase). Sign in with **Google**.
 
 ## Deploy (Vercel)
 
-- Connect the repo to [Vercel](https://vercel.com).
-- Add the same `NEXT_PUBLIC_FIREBASE_*` environment variables in the project settings.
-- In Firebase **Authentication** → **Settings** → **Authorized domains**, add your Vercel domain (e.g. `your-app.vercel.app`).
+This app targets **Vercel** (Next.js is detected automatically; no `vercel.json` is required).
+
+1. Import the Git repo in the [Vercel dashboard](https://vercel.com/new) (or run `npx vercel` / `npm run deploy` after `vercel login` from this directory).
+2. In the Vercel project → **Settings** → **Environment Variables**, add the same keys as `.env.local.example` (`NEXT_PUBLIC_FIREBASE_*`, etc.).
+3. In Firebase **Authentication** → **Settings** → **Authorized domains**, add your production host (e.g. `your-app.vercel.app` and your custom domain if you use one).
+
+Production build command is the default `npm run build`; Node 18+ matches `package.json` `engines`.
 
 ## Stack
 

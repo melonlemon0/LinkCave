@@ -8,12 +8,17 @@ type Props = {
   onSave: (linkId: string, title: string) => Promise<void>;
   onRemove: (linkId: string) => Promise<void>;
   onClose: () => void;
+  /** Fridge: move to freezer (reminders pause). */
+  onFreeze?: () => Promise<void>;
+  /** Freezer: move back to fridge. */
+  onThaw?: () => Promise<void>;
 };
 
-export function EditLinkModal({ link, onSave, onRemove, onClose }: Props) {
+export function EditLinkModal({ link, onSave, onRemove, onClose, onFreeze, onThaw }: Props) {
   const [title, setTitle] = useState(link.title);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [zoneBusy, setZoneBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,7 +41,6 @@ export function EditLinkModal({ link, onSave, onRemove, onClose }: Props) {
   }
 
   async function handleRemove() {
-    if (!confirm("Move this link to trash? You can restore it within 30 days.")) return;
     setError(null);
     setRemoving(true);
     try {
@@ -48,6 +52,36 @@ export function EditLinkModal({ link, onSave, onRemove, onClose }: Props) {
       setRemoving(false);
     }
   }
+
+  async function handleFreeze() {
+    if (!onFreeze) return;
+    setError(null);
+    setZoneBusy(true);
+    try {
+      await onFreeze();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to move");
+    } finally {
+      setZoneBusy(false);
+    }
+  }
+
+  async function handleThaw() {
+    if (!onThaw) return;
+    setError(null);
+    setZoneBusy(true);
+    try {
+      await onThaw();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to move");
+    } finally {
+      setZoneBusy(false);
+    }
+  }
+
+  const busy = saving || removing || zoneBusy;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
@@ -63,26 +97,52 @@ export function EditLinkModal({ link, onSave, onRemove, onClose }: Props) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-white text-moo-dark border border-black/8 focus:outline-none focus:ring-2 focus:ring-moo-accent/50 focus:border-transparent"
+            disabled={busy}
+            className="w-full px-4 py-2.5 rounded-xl bg-white text-moo-dark border border-black/8 focus:outline-none focus:ring-2 focus:ring-moo-accent/50 focus:border-transparent disabled:opacity-50"
           />
         </div>
+        {onFreeze && (
+          <button
+            type="button"
+            onClick={() => void handleFreeze()}
+            disabled={busy}
+            className="mb-3 w-full py-2.5 px-4 rounded-xl text-sm font-medium border border-sky-200 bg-sky-50/80 text-sky-900 hover:bg-sky-100/90 disabled:opacity-50"
+          >
+            {zoneBusy ? "Moving…" : "Move to freezer"}
+          </button>
+        )}
+        {onThaw && (
+          <button
+            type="button"
+            onClick={() => void handleThaw()}
+            disabled={busy}
+            className="mb-3 w-full py-2.5 px-4 rounded-xl text-sm font-medium border border-black/10 bg-moo-cream/80 text-moo-dark hover:bg-moo-cream disabled:opacity-50"
+          >
+            {zoneBusy ? "Moving…" : "Move to fridge"}
+          </button>
+        )}
         <div className="flex gap-2 flex-wrap">
           <button
             type="button"
             onClick={handleRemove}
-            disabled={saving || removing}
+            disabled={busy}
             className="py-2 px-4 rounded-xl text-red-600 hover:bg-red-50 disabled:opacity-50"
           >
             {removing ? "Moving…" : "Move to trash"}
           </button>
           <div className="flex-1" />
-          <button type="button" onClick={onClose} className="py-2 px-4 rounded-xl text-moo-brown hover:bg-moo-brown/10">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="py-2 px-4 rounded-xl text-moo-brown hover:bg-moo-brown/10 disabled:opacity-50"
+          >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !title.trim() || removing}
+            disabled={saving || !title.trim() || busy}
             className="py-2 px-4 rounded-xl bg-moo-accent text-white font-medium disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save"}

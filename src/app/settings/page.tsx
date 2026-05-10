@@ -10,16 +10,22 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { getFirestoreDb } from "@/lib/firebase/config";
 import { isDemoSignedIn, loadDemoPayload, saveDemoPayload, signOutDemo } from "@/lib/local/demo-store";
+import { AppLoadingScreen } from "@/components/AppLoadingScreen";
+import { IconChevronLeft, IconLogOut } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import type { UserSettings } from "@/types/linkfridge";
 import { DEFAULT_REMINDER_OFFSETS } from "@/types/linkfridge";
 
 export default function SettingsPage() {
   const { user, loading: authLoading, configured, signOut } = useAuth();
   const router = useRouter();
-  const [demoMode] = useState(() => typeof window !== "undefined" && isDemoSignedIn());
+  const [demoMode, setDemoMode] = useState(false);
+
+  useLayoutEffect(() => {
+    setDemoMode(isDemoSignedIn());
+  }, []);
   const [settings, setSettings] = useState<UserSettings>({
     reminderDayOffsets: [...DEFAULT_REMINDER_OFFSETS],
     notificationsEnabled: true,
@@ -33,6 +39,8 @@ export default function SettingsPage() {
   );
 
   useEffect(() => {
+    if (!demoMode && typeof window !== "undefined" && isDemoSignedIn()) return;
+
     if (demoMode) {
       const p = loadDemoPayload();
       setSettings(p.settings);
@@ -135,8 +143,8 @@ export default function SettingsPage() {
 
   if (authLoading && !demoMode) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-moo-cream text-moo-brown">
-        Loading…
+      <main className="min-h-screen">
+        <AppLoadingScreen message="Loading settings…" />
       </main>
     );
   }
@@ -146,11 +154,15 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-moo-cream p-4 md:p-8">
+    <main className="min-h-screen bg-white p-4 md:p-8">
       <div className="max-w-md mx-auto">
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/" className="text-moo-accent font-medium hover:underline">
-            ← Fridge
+        <div className="mb-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium text-moo-dark shadow-apple transition hover:bg-moo-cream/80"
+          >
+            <IconChevronLeft className="h-4 w-4 text-moo-accent" />
+            Back to fridge
           </Link>
         </div>
         <h1 className="text-2xl font-semibold text-moo-dark mb-2">Settings</h1>
@@ -238,7 +250,12 @@ export default function SettingsPage() {
           )}
         </section>
 
-        <button type="button" onClick={handleSignOut} className="text-sm text-red-600 hover:underline">
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200/90 bg-red-50/70 px-4 py-3 text-sm font-medium text-red-700 shadow-apple transition hover:bg-red-50 sm:w-auto"
+        >
+          <IconLogOut className="h-[18px] w-[18px] shrink-0" />
           {demoMode ? "Exit demo" : "Sign out"}
         </button>
       </div>

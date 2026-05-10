@@ -12,5 +12,6 @@ export function fridgeLinkToUiLink(l: FridgeLink): Link {
     thumbnail_url: l.thumbnailUrl,
     sort_order: l.sortOrder,
     created_at: new Date(l.createdAt).toISOString(),
+    pinned: l.pinned,
   };
 }

@@ -15,6 +15,7 @@ import {
   type DocumentData,
   type Unsubscribe,
 } from "firebase/firestore";
+import { sortActiveShelfLinks, sortFrozenShelfLinks } from "@/lib/linkfridge/sort-shelf-links";
 import { TRASH_RETENTION_MS, type FridgeLink } from "@/types/linkfridge";
 import { getFirestoreDb } from "./config";
 
@@ -30,6 +31,17 @@ export function mapLinkDoc(id: string, data: DocumentData): FridgeLink {
   const offsets = Array.isArray(data.reminderFiredOffsets)
     ? data.reminderFiredOffsets.filter((n: unknown) => typeof n === "number")
     : [];
+  const rawState = data.state;
+  const state: FridgeLink["state"] =
+    rawState === "trashed" ? "trashed" : rawState === "frozen" ? "frozen" : "active";
+
+  const frozenAtRaw =
+    data.frozenAt instanceof Timestamp ? data.frozenAt.toMillis() : data.frozenAt;
+  let frozenAt: number | null = null;
+  if (state === "frozen") {
+    frozenAt = typeof frozenAtRaw === "number" && Number.isFinite(frozenAtRaw) ? frozenAtRaw : createdAt;
+  }
+
   return {
     id,
     url: String(data.url ?? ""),
@@ -39,9 +51,11 @@ export function mapLinkDoc(id: string, data: DocumentData): FridgeLink {
         ? null
         : String(data.thumbnailUrl),
     createdAt,
-    state: data.state === "trashed" ? "trashed" : "active",
+    state,
     trashedAt: typeof trashedAt === "number" ? trashedAt : null,
+    frozenAt,
     sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
+    pinned: data.pinned === true,
     reminderFiredOffsets: offsets,
   };
 }
@@ -56,7 +70,23 @@ export function subscribeActiveLinks(
     orderBy("createdAt", "desc")
   );
   return onSnapshot(q, (snap) => {
-    onLinks(snap.docs.map((d) => mapLinkDoc(d.id, d.data())));
+    const links = snap.docs.map((d) => mapLinkDoc(d.id, d.data()));
+    onLinks(sortActiveShelfLinks(links));
+  });
+}
+
+export function subscribeFrozenLinks(
+  uid: string,
+  onLinks: (links: FridgeLink[]) => void
+): Unsubscribe {
+  const q = query(
+    linksCol(uid),
+    where("state", "==", "frozen"),
+    orderBy("frozenAt", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    const links = snap.docs.map((d) => mapLinkDoc(d.id, d.data()));
+    onLinks(sortFrozenShelfLinks(links));
   });
 }
 
@@ -84,7 +114,9 @@ export async function addUserLink(
     thumbnailUrl: input.thumbnailUrl,
     state: "active",
     trashedAt: null,
+    frozenAt: null,
     sortOrder: Date.now(),
+    pinned: false,
     reminderFiredOffsets: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -99,10 +131,35 @@ export async function updateLinkTitle(uid: string, linkId: string, title: string
   });
 }
 
+export async function setLinkPinned(uid: string, linkId: string, pinned: boolean): Promise<void> {
+  await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
+    pinned,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function softTrashLink(uid: string, linkId: string): Promise<void> {
   await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
     state: "trashed",
     trashedAt: serverTimestamp(),
+    frozenAt: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function freezeLink(uid: string, linkId: string): Promise<void> {
+  await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
+    state: "frozen",
+    frozenAt: serverTimestamp(),
+    trashedAt: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function unfreezeLink(uid: string, linkId: string): Promise<void> {
+  await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
+    state: "active",
+    frozenAt: null,
     updatedAt: serverTimestamp(),
   });
 }
@@ -111,8 +168,14 @@ export async function restoreLink(uid: string, linkId: string): Promise<void> {
   await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
     state: "active",
     trashedAt: null,
+    frozenAt: null,
     updatedAt: serverTimestamp(),
   });
+}
+
+/** Remove a link document (e.g. from trash). Cannot be undone. */
+export async function permanentDeleteLink(uid: string, linkId: string): Promise<void> {
+  await deleteDoc(doc(getFirestoreDb(), "users", uid, "links", linkId));
 }
 
 export async function recordReminderFired(

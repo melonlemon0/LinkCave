@@ -7,8 +7,11 @@ const FETCH_OPTIONS = {
     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9,ko;q=0.8",
   },
-  signal: AbortSignal.timeout(8000),
+  signal: AbortSignal.timeout(22_000),
 };
+
+/** OG tags are almost always in the head; cap size so huge pages don’t stall regex work. */
+const HTML_META_PREFIX_CHARS = 900_000;
 
 export async function GET(request: NextRequest) {
   const urlParam = request.nextUrl.searchParams.get("url");
@@ -19,8 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     // YouTube (videos + Shorts) and youtu.be: oEmbed for reliable title + thumbnail
     if (isYouTube(url)) {
-      const result = await fetchYouTubeMetadata(url);
-      if (result) return NextResponse.json(result);
+      return NextResponse.json(await fetchYouTubeMetadata(url));
     }
     // Spotify: oEmbed
     if (isSpotify(url)) {
@@ -113,26 +115,59 @@ function isAppleMusic(url: string): boolean {
   }
 }
 
-async function fetchYouTubeMetadata(
-  url: string
-): Promise<{ title: string; thumbnail_url: string | null } | null> {
+function extractYouTubeVideoId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = u.pathname.replace(/^\//, "").split("/")[0]?.split("?")[0];
+      return id && /^[\w-]{6,}$/.test(id) ? id : null;
+    }
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const v = u.searchParams.get("v");
+      if (v && /^[\w-]{6,}$/.test(v)) return v;
+      const m = u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{6,})/);
+      if (m) return m[1];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function youtubeThumbnailFallback(videoId: string): string {
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+}
+
+async function fetchYouTubeMetadata(url: string): Promise<{ title: string; thumbnail_url: string | null }> {
+  const id = extractYouTubeVideoId(url);
+  const thumbFallback = id ? youtubeThumbnailFallback(id) : null;
+  const titleHost = new URL(url).hostname;
+  const titleFallback = id ? "YouTube" : titleHost;
+
   try {
     const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
     const res = await fetch(oembedUrl, {
       ...FETCH_OPTIONS,
       headers: { ...FETCH_OPTIONS.headers, Accept: "application/json" },
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      title?: string;
-      thumbnail_url?: string;
-    };
-    const title = (data.title ?? new URL(url).hostname).trim().slice(0, 200);
-    const thumbnail_url = data.thumbnail_url ?? null;
-    return { title: title || "YouTube", thumbnail_url };
+    if (res.ok) {
+      const data = (await res.json()) as {
+        title?: string;
+        thumbnail_url?: string;
+      };
+      const title = (data.title ?? titleFallback).trim().slice(0, 200);
+      const thumbnail_url = (data.thumbnail_url?.trim() || thumbFallback) ?? null;
+      return { title: title || titleFallback, thumbnail_url };
+    }
   } catch {
-    return null;
+    /* use static thumbnail when oEmbed is rate-limited or unreachable */
   }
+
+  if (id && thumbFallback) {
+    return { title: titleFallback, thumbnail_url: thumbFallback };
+  }
+  return { title: titleHost, thumbnail_url: null };
 }
 
 async function fetchSpotifyMetadata(
@@ -163,18 +198,14 @@ async function fetchAppleMusicMetadata(
   try {
     const res = await fetch(url, FETCH_OPTIONS);
     if (!res.ok) return null;
-    const html = await res.text();
-    const title =
+    const html = htmlForMetaParse(await res.text());
+    const titleRaw =
       extractMetaContent(html, "property", "og:title") ||
       extractTagText(html, "title") ||
       "Apple Music";
-    const thumbnail =
-      extractMetaContent(html, "property", "og:image") ||
-      extractMetaContent(html, "name", "twitter:image") ||
-      null;
-    const thumbnail_url = thumbnail ? new URL(thumbnail, url).href : null;
+    const thumbnail_url = pickOgImage(html, url);
     return {
-      title: title.trim().slice(0, 200) || "Apple Music",
+      title: sanitizePreviewText(titleRaw, "Apple Music"),
       thumbnail_url,
     };
   } catch {
@@ -187,21 +218,76 @@ async function fetchHtmlMetadata(
 ): Promise<{ title: string; thumbnail_url: string | null }> {
   const res = await fetch(url, FETCH_OPTIONS);
   if (!res.ok) throw new Error("Fetch failed");
-  const html = await res.text();
-  const title =
+  const html = htmlForMetaParse(await res.text());
+  const host = new URL(url).hostname;
+  const titleRaw =
     extractMetaContent(html, "property", "og:title") ||
     extractMetaContent(html, "name", "twitter:title") ||
     extractTagText(html, "title") ||
-    new URL(url).hostname;
-  const thumbnail =
-    extractMetaContent(html, "property", "og:image") ||
-    extractMetaContent(html, "name", "twitter:image") ||
-    null;
-  const absoluteThumb = thumbnail ? new URL(thumbnail, url).href : null;
+    host;
+  const thumbnail_url = pickOgImage(html, url);
   return {
-    title: title.trim().slice(0, 200) || "Link",
-    thumbnail_url: absoluteThumb,
+    title: sanitizePreviewText(titleRaw, host),
+    thumbnail_url,
   };
+}
+
+function htmlForMetaParse(full: string): string {
+  if (full.length <= HTML_META_PREFIX_CHARS) return full;
+  return full.slice(0, HTML_META_PREFIX_CHARS);
+}
+
+function decodeHtmlEntities(raw: string): string {
+  if (!raw.includes("&")) return raw;
+  let s = raw;
+  s = s.replace(/&#x([0-9a-f]+);/gi, (match, hex: string) => {
+    const cp = parseInt(hex, 16);
+    if (!Number.isFinite(cp) || cp < 0 || cp > 0x10ffff) return match;
+    try {
+      return String.fromCodePoint(cp);
+    } catch {
+      return match;
+    }
+  });
+  s = s.replace(/&#(\d+);/g, (match, dec: string) => {
+    const cp = parseInt(dec, 10);
+    if (!Number.isFinite(cp) || cp < 0 || cp > 0x10ffff) return match;
+    try {
+      return String.fromCodePoint(cp);
+    } catch {
+      return match;
+    }
+  });
+  s = s.replace(/&nbsp;/gi, " ");
+  s = s.replace(/&amp;/gi, "&");
+  s = s.replace(/&quot;/gi, '"');
+  s = s.replace(/&apos;/gi, "'");
+  s = s.replace(/&lt;/gi, "<");
+  s = s.replace(/&gt;/gi, ">");
+  return s;
+}
+
+function sanitizePreviewText(raw: string, fallback: string): string {
+  const t = decodeHtmlEntities(raw).replace(/\s+/g, " ").trim().slice(0, 200);
+  return t || fallback;
+}
+
+function pickOgImage(html: string, baseUrl: string): string | null {
+  const raw =
+    extractMetaContent(html, "property", "og:image:secure_url") ||
+    extractMetaContent(html, "property", "og:image:url") ||
+    extractMetaContent(html, "property", "og:image") ||
+    extractMetaContent(html, "name", "twitter:image:src") ||
+    extractMetaContent(html, "name", "twitter:image") ||
+    extractMetaContent(html, "property", "twitter:image") ||
+    null;
+  if (!raw) return null;
+  const decoded = decodeHtmlEntities(raw.trim());
+  try {
+    return new URL(decoded, baseUrl).href;
+  } catch {
+    return null;
+  }
 }
 
 function extractMetaContent(

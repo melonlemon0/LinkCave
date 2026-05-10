@@ -16,6 +16,8 @@ export type Link = {
   thumbnail_url: string | null;
   sort_order: number;
   created_at: string;
+  /** Pin to top of fridge / freezer (LinkFridge). */
+  pinned?: boolean;
 };
 
 export type LinkInsert = Omit<Link, "id" | "created_at"> & { id?: string; created_at?: string };

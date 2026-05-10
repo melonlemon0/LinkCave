@@ -10,7 +10,7 @@
 }
 
 body {
-  @apply bg-moo-cream text-moo-dark font-cute antialiased;
+  @apply bg-white text-moo-dark font-linkfridge antialiased;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

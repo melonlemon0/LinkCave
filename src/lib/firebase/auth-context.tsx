@@ -38,11 +38,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    const auth = getFirebaseAuth();
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    let unsubscribe: (() => void) | undefined;
+    const failSafe = window.setTimeout(() => {
       setLoading(false);
-    });
+    }, 12_000);
+    try {
+      const auth = getFirebaseAuth();
+      /** Session restore can lag the first listener tick; read sync state so UI does not hang. */
+      const initial = auth.currentUser;
+      setUser(initial);
+      if (initial) setLoading(false);
+
+      unsubscribe = onAuthStateChanged(auth, (u) => {
+        setUser(u);
+        setLoading(false);
+      });
+
+      /** Clears "Signing you in…" when persistence restore finishes (Safari, PWA, slow networks). */
+      void auth.authStateReady().then(() => {
+        setLoading(false);
+      });
+    } catch {
+      setUser(null);
+      setLoading(false);
+    }
+    return () => {
+      window.clearTimeout(failSafe);
+      unsubscribe?.();
+    };
   }, []);
 
   const signInWithGoogle = useCallback(async () => {

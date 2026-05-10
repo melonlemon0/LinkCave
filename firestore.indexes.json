@@ -15,6 +15,14 @@
         { "fieldPath": "state", "order": "ASCENDING" },
         { "fieldPath": "trashedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "links",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "frozenAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

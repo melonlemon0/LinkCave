@@ -2,6 +2,9 @@
 
 import { useAuth } from "@/lib/firebase/auth-context";
 import { isDemoSignedIn, signInDemo } from "@/lib/local/demo-store";
+import { AppLoadingScreen } from "@/components/AppLoadingScreen";
+import { LinkFridgeLogo } from "@/components/LinkFridgeLogo";
+import { LinkFridgeWordmark } from "@/components/LinkFridgeWordmark";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -76,19 +79,19 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-moo-cream text-moo-brown">
-        Loading…
+      <main className="min-h-screen">
+        <AppLoadingScreen message="Checking sign-in…" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-moo-cream">
+    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-white">
       <div className="text-center max-w-sm w-full">
-        <p className="text-5xl mb-4" aria-hidden>
-          🧊
-        </p>
-        <h1 className="text-3xl font-semibold text-moo-dark tracking-tight mb-2">LinkFridge</h1>
+        <h1 className="mb-4 flex flex-col items-center gap-1">
+          <LinkFridgeLogo size={132} className="rounded-2xl shadow-apple" alt="" priority />
+          <LinkFridgeWordmark heightClass="h-14 w-auto sm:h-[4.25rem]" alt="LinkFridge" priority />
+        </h1>
         <p className="text-moo-brown text-base mb-6">
           Save links with reminders. Cloud sync with Google, or try locally on this device.
         </p>
