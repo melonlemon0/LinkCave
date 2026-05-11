@@ -163,10 +163,10 @@ export default function SettingsPage() {
           <div className="mb-1.5">
             <Link
               href="/"
-              className="inline-flex items-center gap-0.5 text-moo-accent hover:opacity-80"
+              className="-ml-1 inline-flex items-center justify-center rounded-xl p-2 text-moo-accent hover:bg-black/[0.04] hover:opacity-90"
               aria-label="Back to fridge"
             >
-              <IconChevronLeft className="h-5 w-5 shrink-0" aria-hidden />
+              <IconChevronLeft className="h-7 w-7 shrink-0" aria-hidden />
             </Link>
           </div>
           <section className="overflow-hidden rounded-2xl border border-emerald-200/45 bg-gradient-to-b from-sky-100/95 via-cyan-50/90 to-emerald-100/95 p-4 shadow-sm sm:p-5">

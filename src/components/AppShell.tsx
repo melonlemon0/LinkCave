@@ -554,7 +554,7 @@ export function AppShell() {
                 </div>
               ) : (
                 <div className="min-h-0 flex-1 overflow-auto pb-6 pt-2 sm:pt-2.5">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
                     {tab === "fridge" ? (
                       <div key="__paste_plus__" className="flex min-h-0 h-full min-w-0 flex-col">
                         <FridgePastePlusCard onPaste={onQuickPaste} disabled={pasteBusy} />

@@ -108,11 +108,11 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
         <div className="aspect-video relative bg-gray-100">
           {link.pinned ? (
             <div
-              className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sky-200/90 bg-gradient-to-b from-sky-50/95 to-cyan-100/90 text-sky-700 shadow-sm"
+              className="absolute left-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-sky-200/90 bg-gradient-to-b from-sky-50/95 to-cyan-100/90 text-sky-700 shadow-sm sm:left-1.5 sm:top-1.5 sm:h-6 sm:w-6"
               aria-label="Pinned link"
               title="Pinned"
             >
-              <IconSnowflake className="h-3.5 w-3.5" />
+              <IconSnowflake className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             </div>
           ) : null}
           {link.thumbnailUrl ? (
@@ -129,24 +129,27 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
               }}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-4xl text-gray-300">
+            <div className="absolute inset-0 flex items-center justify-center text-2xl text-gray-300 sm:text-4xl">
               🔗
             </div>
           )}
         </div>
-        <p className="p-3 text-sm font-medium text-moo-dark truncate" title={link.title}>
+        <p
+          className="truncate px-1.5 py-1.5 text-[10px] font-medium leading-snug text-moo-dark sm:p-3 sm:text-sm"
+          title={link.title}
+        >
           {link.title}
         </p>
       </a>
-      <div className="absolute left-2 top-2 z-10 flex items-start gap-1">
+      <div className="absolute left-1 top-1 z-10 flex items-start gap-0.5 sm:left-2 sm:top-2 sm:gap-1">
         <button
           type="button"
           onClick={copyUrl}
           onMouseDown={(e) => e.stopPropagation()}
           className={`flex items-center justify-center border border-black/[0.08] bg-white/95 shadow-ios-icon backdrop-blur-sm transition-opacity hover:border-black/12 hover:bg-white hover:text-moo-accent ${
             copied
-              ? "min-h-8 min-w-[4.75rem] rounded-xl px-2 py-1.5 text-emerald-600 opacity-100"
-              : "h-8 w-8 rounded-full text-moo-dark opacity-0 group-hover:opacity-100"
+              ? "min-h-7 min-w-[3.75rem] rounded-lg px-1.5 py-1 text-emerald-600 opacity-100 sm:min-h-8 sm:min-w-[4.75rem] sm:rounded-xl sm:px-2 sm:py-1.5"
+              : "h-7 w-7 rounded-full text-moo-dark opacity-0 group-hover:opacity-100 sm:h-8 sm:w-8"
           }`}
           aria-label={copied ? "Copied!" : "Share — copy link to clipboard"}
           title={copied ? "Copied!" : "Share (copy link)"}
@@ -154,7 +157,7 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
           {copied ? (
             <span className="text-[11px] font-semibold leading-none tracking-tight">Copied!</span>
           ) : (
-            <IconShare className="h-[18px] w-[18px] shrink-0" />
+            <IconShare className="h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px]" />
           )}
         </button>
         {onEdit ? (
@@ -166,7 +169,7 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
               onEdit(link);
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-white/95 text-moo-dark opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:border-black/12 hover:bg-white hover:text-moo-accent group-hover:opacity-100"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-white/95 text-moo-dark opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:border-black/12 hover:bg-white hover:text-moo-accent group-hover:opacity-100 sm:h-8 sm:w-8"
             aria-label="Edit link"
             title="Edit"
           >
@@ -183,11 +186,11 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
             void onDelete(link);
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-50/95 text-red-700 opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:bg-red-50 group-hover:opacity-100"
+          className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-50/95 text-red-700 opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:bg-red-50 group-hover:opacity-100 sm:right-2 sm:top-2 sm:h-8 sm:w-8"
           aria-label="Delete link"
           title="Delete"
         >
-          <IconTrash className="h-[24px] w-[24px] shrink-0 opacity-90" />
+          <IconTrash className="h-5 w-5 shrink-0 opacity-90 sm:h-6 sm:w-6" />
         </button>
       ) : null}
     </div>
