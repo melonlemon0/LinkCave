@@ -464,7 +464,7 @@ export function AppShell() {
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-white">
       <main className="mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col px-2 pb-8 pt-2 sm:px-3 md:px-4 md:pb-10">
-        <div className="flex min-h-0 flex-1 flex-row items-stretch gap-2 sm:gap-3 md:gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-stretch gap-2 sm:gap-3 md:flex-row md:gap-4">
           <FridgeShelves
             tab={tab}
             onTab={setTab}
@@ -541,12 +541,12 @@ export function AppShell() {
                       ) : tab === "meat" ? (
                         <>
                           Meat locker is empty. Drag from the fridge onto the{" "}
-                          <strong className="text-moo-dark">meat locker</strong> shelf on the left, or use Edit link.
+                          <strong className="text-moo-dark">meat locker</strong> shelf, or use Edit link.
                         </>
                       ) : (
                         <>
                           Fruit locker is empty. Drag from the fridge onto the{" "}
-                          <strong className="text-moo-dark">fruit locker</strong> shelf on the left, or use Edit link.
+                          <strong className="text-moo-dark">fruit locker</strong> shelf, or use Edit link.
                         </>
                       )}
                     </p>
@@ -554,7 +554,7 @@ export function AppShell() {
                 </div>
               ) : (
                 <div className="min-h-0 flex-1 overflow-auto pb-6 pt-2 sm:pt-2.5">
-                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
                     {tab === "fridge" ? (
                       <div key="__paste_plus__" className="flex min-h-0 h-full min-w-0 flex-col">
                         <FridgePastePlusCard onPaste={onQuickPaste} disabled={pasteBusy} />
