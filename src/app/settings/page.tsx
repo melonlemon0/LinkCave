@@ -172,17 +172,27 @@ export default function SettingsPage() {
           <section className="overflow-hidden rounded-2xl border border-emerald-200/45 bg-gradient-to-b from-sky-100/95 via-cyan-50/90 to-emerald-100/95 p-4 shadow-sm sm:p-5">
             <div className="flex items-center gap-2 border-b border-black/[0.06] pb-3 text-moo-dark">
               <IconSnowflake className="h-4 w-4 shrink-0 text-sky-800/80" aria-hidden />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-moo-dark/75">Notify</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-moo-dark/75">Reminder</span>
             </div>
-            <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-white/70 px-3 py-2.5">
-              <span className="text-sm text-moo-dark">On</span>
-              <input
-                type="checkbox"
-                checked={settings.notificationsEnabled}
-                onChange={() => void toggleNotifications()}
-                className="h-4 w-4 rounded border-sky-300 text-moo-accent focus:ring-moo-accent/30"
-              />
-            </label>
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-white/70 px-3 py-2.5">
+              <span className="text-sm text-moo-dark">{settings.notificationsEnabled ? "On" : "Off"}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={settings.notificationsEnabled}
+                aria-label="Toggle reminder notifications"
+                onClick={() => void toggleNotifications()}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  settings.notificationsEnabled ? "bg-moo-accent/90" : "bg-black/15"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    settings.notificationsEnabled ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
             {notifPermission !== "unsupported" ? (
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[11px] capitalize text-moo-brown">{notifPermission}</span>
@@ -204,7 +214,7 @@ export default function SettingsPage() {
 
             <div className="flex items-center gap-2 text-moo-dark">
               <IconFridge className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-moo-dark/75">Day</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-moo-dark/75">Day</span>
             </div>
             <div className="mt-2 flex items-center gap-2">
               <input

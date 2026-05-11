@@ -177,3 +177,18 @@ export function IconShare({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+/** Pin marker — clean map-pin style for pinned links. */
+export function IconPin({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <path d="M12 21v-5" strokeLinecap="round" />
+      <path
+        d="M8.2 11.2l3.3-7.1a.55.55 0 011 0l3.3 7.1a3.8 3.8 0 01-3.45 5.38h-.7a3.8 3.8 0 01-3.45-5.38z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="10" r="1.35" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+

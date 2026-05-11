@@ -2,7 +2,7 @@
 
 import type { FridgeLink, ShelfTab } from "@/types/linkfridge";
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { IconLinkSliders, IconShare, IconTrash } from "./icons";
+import { IconLinkSliders, IconShare, IconSnowflake, IconTrash } from "./icons";
 
 const DRAG_GHOST_SCALE = 0.5;
 
@@ -106,6 +106,15 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
     >
       <a href={link.url} target="_blank" rel="noopener noreferrer" draggable={false} className="block">
         <div className="aspect-video relative bg-gray-100">
+          {link.pinned ? (
+            <div
+              className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sky-200/90 bg-gradient-to-b from-sky-50/95 to-cyan-100/90 text-sky-700 shadow-sm"
+              aria-label="Pinned link"
+              title="Pinned"
+            >
+              <IconSnowflake className="h-3.5 w-3.5" />
+            </div>
+          ) : null}
           {link.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- arbitrary OG URLs from metadata API
             <img
@@ -174,11 +183,11 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
             void onDelete(link);
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-red-200/90 bg-red-50/95 text-red-700 opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:bg-red-50 group-hover:opacity-100"
+          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-50/95 text-red-700 opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:bg-red-50 group-hover:opacity-100"
           aria-label="Delete link"
           title="Delete"
         >
-          <IconTrash className="h-[17px] w-[17px] shrink-0 opacity-90" />
+          <IconTrash className="h-[24px] w-[24px] shrink-0 opacity-90" />
         </button>
       ) : null}
     </div>

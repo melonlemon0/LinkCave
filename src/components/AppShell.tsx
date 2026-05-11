@@ -20,7 +20,6 @@ import {
   loadDemoPayload,
   newDemoLink,
   saveDemoPayload,
-  signOutDemo,
 } from "@/lib/local/demo-store";
 import { fetchLinkPreview } from "@/lib/linkfridge/fetch-link-preview";
 import { normalizeLinkUrl } from "@/lib/linkfridge/url-helpers";
@@ -445,14 +444,6 @@ export function AppShell() {
     [handleFreeze, handleMoveFrozenZone, handleUnfreeze]
   );
 
-  const exitDemo = useCallback(() => {
-    signOutDemo();
-    setDemoMode(false);
-    setDemoHydrated(false);
-    router.replace("/login");
-    router.refresh();
-  }, [router]);
-
   if (!shellReady) {
     return <AppLoadingScreen message="Loading…" />;
   }
@@ -592,8 +583,6 @@ export function AppShell() {
           link={fridgeLinkToUiLink(editingLink)}
           onSave={handleSaveLink}
           onClose={() => setEditingLink(null)}
-          demoMode={demoMode}
-          onExitDemo={demoMode ? exitDemo : undefined}
           onTogglePin={async () => {
             await handleTogglePin(editingLink.id);
           }}

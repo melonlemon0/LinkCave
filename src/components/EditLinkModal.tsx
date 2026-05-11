@@ -19,8 +19,6 @@ type Props = {
   onRelocateFrozen?: (zone: FrozenZone) => Promise<void>;
   /** Pin / unpin on the current shelf (fridge or freezer). */
   onTogglePin?: () => Promise<void>;
-  demoMode?: boolean;
-  onExitDemo?: () => void;
 };
 
 /** Match `FridgeShelves` shelf card backgrounds (default / non-selected). */
@@ -44,8 +42,6 @@ export function EditLinkModal({
   activeFrozenZone,
   onRelocateFrozen,
   onTogglePin,
-  demoMode,
-  onExitDemo,
 }: Props) {
   const [title, setTitle] = useState(link.title);
   const [url, setUrl] = useState(link.url);
@@ -173,6 +169,22 @@ export function EditLinkModal({
         >
           <span className="text-[1.35rem] font-light leading-none">×</span>
         </button>
+        {onTogglePin ? (
+          <button
+            type="button"
+            onClick={() => void handleTogglePin()}
+            disabled={busy}
+            className={`absolute right-14 top-3 z-10 flex h-9 min-w-9 items-center justify-center rounded-full px-2 leading-none transition disabled:opacity-40 ${
+              link.pinned
+                ? "bg-sky-50/90 text-sky-700"
+                : "text-sky-500/70 hover:bg-sky-50/70 hover:text-sky-600"
+            }`}
+            title={link.pinned ? "Unpin" : "Pin"}
+            aria-label={link.pinned ? "Unpin link" : "Pin link"}
+          >
+            <IconSnowflake className="h-4 w-4" />
+          </button>
+        ) : null}
 
         <div className="p-6 pt-7">
           <h3 className="mb-5 pr-10 text-lg font-semibold tracking-tight text-moo-dark">Edit link</h3>
@@ -211,24 +223,6 @@ export function EditLinkModal({
               </button>
             </div>
           </div>
-
-          {onTogglePin ? (
-            <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-black/[0.06] bg-moo-cream/35 px-4 py-3">
-              <span className="text-sm text-moo-dark">Pin to top of this shelf</span>
-              <button
-                type="button"
-                onClick={() => void handleTogglePin()}
-                disabled={busy}
-                className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition ${
-                  link.pinned
-                    ? "bg-[#fff176] text-moo-dark hover:bg-[#ffec85]"
-                    : "border border-black/10 bg-white text-moo-dark hover:bg-moo-cream/80"
-                }`}
-              >
-                {link.pinned ? "Unpin" : "Pin"}
-              </button>
-            </div>
-          ) : null}
 
           {onFreezeTo ? (
             <div className="mb-5">
@@ -334,20 +328,6 @@ export function EditLinkModal({
             {saving ? "Saving…" : "Save changes"}
           </button>
 
-          {demoMode && onExitDemo ? (
-            <div className="mt-5 flex flex-wrap items-center justify-center border-t border-black/[0.06] pt-4 text-xs text-moo-brown">
-              <button
-                type="button"
-                className="font-medium text-orange-800 hover:underline"
-                onClick={() => {
-                  onExitDemo();
-                  onClose();
-                }}
-              >
-                Exit demo
-              </button>
-            </div>
-          ) : null}
         </div>
       </div>
     </div>

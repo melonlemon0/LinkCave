@@ -55,9 +55,11 @@ export async function fetchLinkPreview(rawInput: string): Promise<LinkPreviewRes
       fetchFailed = true;
     }
 
-    const looksBare =
-      thumbnailUrl === null && title === hostname;
-    if (!looksBare && !fetchFailed) break;
+    /** Retry when we still only have the hostname as title — og:image can succeed while title meta is missed. */
+    const titleStillFallback = title === hostname;
+    const looksBare = thumbnailUrl === null && titleStillFallback;
+    const needBetterTitle = titleStillFallback && thumbnailUrl !== null;
+    if (!looksBare && !needBetterTitle && !fetchFailed) break;
     if (attempt < MAX_ATTEMPTS - 1) {
       await sleep(650 + attempt * 450);
     }

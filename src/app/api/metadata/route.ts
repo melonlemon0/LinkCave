@@ -201,6 +201,7 @@ async function fetchAppleMusicMetadata(
     const html = htmlForMetaParse(await res.text());
     const titleRaw =
       extractMetaContent(html, "property", "og:title") ||
+      extractJsonLdHeadline(html) ||
       extractTagText(html, "title") ||
       "Apple Music";
     const thumbnail_url = pickOgImage(html, url);
@@ -223,6 +224,7 @@ async function fetchHtmlMetadata(
   const titleRaw =
     extractMetaContent(html, "property", "og:title") ||
     extractMetaContent(html, "name", "twitter:title") ||
+    extractJsonLdHeadline(html) ||
     extractTagText(html, "title") ||
     host;
   const thumbnail_url = pickOgImage(html, url);
@@ -288,6 +290,60 @@ function pickOgImage(html: string, baseUrl: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Many sites only expose a proper title in JSON-LD (og:title missing or generic). */
+function extractJsonLdHeadline(html: string): string | null {
+  const scriptRe =
+    /<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script\s*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = scriptRe.exec(html)) !== null) {
+    const raw = m[1]?.trim() ?? "";
+    if (raw.length < 2 || raw.length > 400_000) continue;
+    try {
+      const data = JSON.parse(raw) as unknown;
+      for (const field of ["headline", "title", "name"] as const) {
+        const t = findFirstJsonLdStringField(data, field, 0);
+        if (t) return t;
+      }
+    } catch {
+      /* invalid JSON-LD */
+    }
+  }
+  return null;
+}
+
+function findFirstJsonLdStringField(
+  node: unknown,
+  field: string,
+  depth: number
+): string | null {
+  if (depth > 28 || node == null) return null;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const t = findFirstJsonLdStringField(item, field, depth + 1);
+      if (t) return t;
+    }
+    return null;
+  }
+  if (typeof node !== "object") return null;
+  const o = node as Record<string, unknown>;
+  const v = o[field];
+  if (typeof v === "string") {
+    const s = decodeHtmlEntities(v).replace(/\s+/g, " ").trim();
+    if (s.length >= 2 && s.length <= 500 && !/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  }
+  const graph = o["@graph"];
+  if (graph) {
+    const t = findFirstJsonLdStringField(graph, field, depth + 1);
+    if (t) return t;
+  }
+  for (const k of Object.keys(o)) {
+    if (k.startsWith("@")) continue;
+    const t = findFirstJsonLdStringField(o[k], field, depth + 1);
+    if (t) return t;
+  }
+  return null;
 }
 
 function extractMetaContent(
