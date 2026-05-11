@@ -10,15 +10,15 @@ const linkFridgeSans = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "LinkFridge — Chill your links",
+  title: "Chill your links",
   description:
-    "Save links in the cloud with Gmail. Gentle reminders so saved links do not get forgotten.",
+    "Save links with thumbnails and gentle reminders so nothing gets forgotten.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logogo.png",
-    apple: "/logogo.png",
+    icon: "/linkfridge.png",
+    apple: "/linkfridge.png",
   },
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "LinkFridge" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Chill your links" },
 };
 
 export const viewport: Viewport = {

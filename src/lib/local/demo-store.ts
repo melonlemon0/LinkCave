@@ -1,6 +1,6 @@
 "use client";
 
-import type { FridgeLink, UserSettings } from "@/types/linkfridge";
+import type { FridgeLink, FrozenZone, UserSettings } from "@/types/linkfridge";
 import { DEFAULT_REMINDER_OFFSETS, TRASH_RETENTION_MS } from "@/types/linkfridge";
 
 const DEMO_AUTH_KEY = "linkfridge-demo-session";
@@ -82,6 +82,7 @@ function normalizeDemoLink(raw: unknown): FridgeLink | null {
 
   const frozenRaw = o.frozenAt ?? o.frozen_at;
   let frozenAt: number | null = null;
+  let frozenZone: FrozenZone | null = null;
   if (state === "frozen") {
     if (typeof frozenRaw === "number" && Number.isFinite(frozenRaw)) frozenAt = frozenRaw;
     else if (typeof frozenRaw === "string") {
@@ -89,6 +90,8 @@ function normalizeDemoLink(raw: unknown): FridgeLink | null {
       if (!Number.isNaN(t)) frozenAt = t;
     }
     if (frozenAt == null) frozenAt = createdAt;
+    const z = o.frozenZone;
+    frozenZone = z === "meat" || z === "fruit" || z === "freezer" ? z : "freezer";
   } else {
     frozenAt = null;
   }
@@ -107,6 +110,7 @@ function normalizeDemoLink(raw: unknown): FridgeLink | null {
     state,
     trashedAt,
     frozenAt,
+    frozenZone,
     sortOrder,
     pinned,
     reminderFiredOffsets,
@@ -149,11 +153,11 @@ export function loadDemoPayload(): DemoPayload {
         ? { ...defaults.settings, ...(rawSettings as UserSettings) }
         : defaults.settings;
     const ro = settings.reminderDayOffsets;
-    if (!Array.isArray(ro) || ro.length < 2) {
+    if (!Array.isArray(ro) || ro.length < 1) {
       settings.reminderDayOffsets = [...DEFAULT_REMINDER_OFFSETS];
     } else {
       const a = Number(ro[0]);
-      const b = Number(ro[1]);
+      const b = ro.length >= 2 ? Number(ro[1]) : a;
       settings.reminderDayOffsets =
         Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b >= 0
           ? ([Math.min(a, b), Math.max(a, b)] as [number, number])
@@ -188,6 +192,7 @@ export function newDemoLink(input: {
     state: "active",
     trashedAt: null,
     frozenAt: null,
+    frozenZone: null,
     sortOrder: Date.now(),
     pinned: false,
     reminderFiredOffsets: [],

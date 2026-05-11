@@ -16,7 +16,7 @@ export type Link = {
   thumbnail_url: string | null;
   sort_order: number;
   created_at: string;
-  /** Pin to top of fridge / freezer (LinkFridge). */
+  /** Pin to top of fridge / freezer shelf. */
   pinned?: boolean;
 };
 

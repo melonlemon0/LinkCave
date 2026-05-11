@@ -16,7 +16,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { sortActiveShelfLinks, sortFrozenShelfLinks } from "@/lib/linkfridge/sort-shelf-links";
-import { TRASH_RETENTION_MS, type FridgeLink } from "@/types/linkfridge";
+import { TRASH_RETENTION_MS, type FridgeLink, type FrozenZone } from "@/types/linkfridge";
 import { getFirestoreDb } from "./config";
 
 function linksCol(uid: string) {
@@ -42,6 +42,13 @@ export function mapLinkDoc(id: string, data: DocumentData): FridgeLink {
     frozenAt = typeof frozenAtRaw === "number" && Number.isFinite(frozenAtRaw) ? frozenAtRaw : createdAt;
   }
 
+  const rawZone = data.frozenZone;
+  let frozenZone: FrozenZone | null = null;
+  if (state === "frozen") {
+    frozenZone =
+      rawZone === "meat" || rawZone === "fruit" || rawZone === "freezer" ? rawZone : "freezer";
+  }
+
   return {
     id,
     url: String(data.url ?? ""),
@@ -54,6 +61,7 @@ export function mapLinkDoc(id: string, data: DocumentData): FridgeLink {
     state,
     trashedAt: typeof trashedAt === "number" ? trashedAt : null,
     frozenAt,
+    frozenZone,
     sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
     pinned: data.pinned === true,
     reminderFiredOffsets: offsets,
@@ -115,6 +123,7 @@ export async function addUserLink(
     state: "active",
     trashedAt: null,
     frozenAt: null,
+    frozenZone: null,
     sortOrder: Date.now(),
     pinned: false,
     reminderFiredOffsets: [],
@@ -124,9 +133,14 @@ export async function addUserLink(
   return ref.id;
 }
 
-export async function updateLinkTitle(uid: string, linkId: string, title: string): Promise<void> {
+export async function updateLinkDetails(
+  uid: string,
+  linkId: string,
+  patch: { title: string; url: string }
+): Promise<void> {
   await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
-    title: title.slice(0, 500),
+    title: patch.title.slice(0, 500),
+    url: patch.url.trim().slice(0, 4000),
     updatedAt: serverTimestamp(),
   });
 }
@@ -143,15 +157,29 @@ export async function softTrashLink(uid: string, linkId: string): Promise<void> 
     state: "trashed",
     trashedAt: serverTimestamp(),
     frozenAt: null,
+    frozenZone: null,
     updatedAt: serverTimestamp(),
   });
 }
 
-export async function freezeLink(uid: string, linkId: string): Promise<void> {
+export async function freezeLink(
+  uid: string,
+  linkId: string,
+  zone: FrozenZone = "freezer"
+): Promise<void> {
   await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
     state: "frozen",
     frozenAt: serverTimestamp(),
+    frozenZone: zone,
     trashedAt: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Move between cold shelves without changing `frozenAt`. */
+export async function setFrozenZone(uid: string, linkId: string, zone: FrozenZone): Promise<void> {
+  await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
+    frozenZone: zone,
     updatedAt: serverTimestamp(),
   });
 }
@@ -160,6 +188,7 @@ export async function unfreezeLink(uid: string, linkId: string): Promise<void> {
   await updateDoc(doc(getFirestoreDb(), "users", uid, "links", linkId), {
     state: "active",
     frozenAt: null,
+    frozenZone: null,
     updatedAt: serverTimestamp(),
   });
 }
@@ -169,6 +198,7 @@ export async function restoreLink(uid: string, linkId: string): Promise<void> {
     state: "active",
     trashedAt: null,
     frozenAt: null,
+    frozenZone: null,
     updatedAt: serverTimestamp(),
   });
 }

@@ -8,14 +8,12 @@ import {
   permanentDeleteLink,
   purgeExpiredTrash,
   recordReminderFired,
-  restoreLink,
+  setFrozenZone,
   setLinkPinned,
-  softTrashLink,
   subscribeActiveLinks,
   subscribeFrozenLinks,
-  subscribeTrashedLinks,
   unfreezeLink,
-  updateLinkTitle,
+  updateLinkDetails,
 } from "@/lib/firebase/links-repo";
 import {
   isDemoSignedIn,
@@ -25,20 +23,30 @@ import {
   signOutDemo,
 } from "@/lib/local/demo-store";
 import { fetchLinkPreview } from "@/lib/linkfridge/fetch-link-preview";
+import { normalizeLinkUrl } from "@/lib/linkfridge/url-helpers";
 import { countDueReminders, getPendingReminderOffsets } from "@/lib/linkfridge/reminders";
 import { sortActiveShelfLinks, sortFrozenShelfLinks } from "@/lib/linkfridge/sort-shelf-links";
 import { fridgeLinkToUiLink } from "@/lib/linkfridge/to-ui-link";
-import { TRASH_RETENTION_MS, type FridgeLink, type ShelfTab, type UserSettings } from "@/types/linkfridge";
+import { linkFrozenZone, type FridgeLink, type FrozenZone, type ShelfTab, type UserSettings } from "@/types/linkfridge";
 import { DEFAULT_REMINDER_OFFSETS } from "@/types/linkfridge";
 import { useRouter } from "next/navigation";
 import type { DragEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AppLoadingScreen } from "./AppLoadingScreen";
-import { Header, type ReminderInboxItem } from "./Header";
-import { AddLinkModal } from "./AddLinkModal";
 import { FridgeLinkCard } from "./FridgeLinkCard";
+import { FridgePastePlusCard } from "./FridgePastePlusCard";
 import { FridgeShelves } from "./FridgeShelves";
 import { EditLinkModal } from "./EditLinkModal";
+
+type ReminderInboxItem = {
+  linkId: string;
+  title: string;
+  offsets: number[];
+};
+
+function isColdShelfTab(x: unknown): x is Exclude<ShelfTab, "fridge"> {
+  return x === "freezer" || x === "meat" || x === "fruit";
+}
 
 function parseDragPayload(e: DragEvent<Element>): { linkId: string; from: ShelfTab } | null {
   try {
@@ -47,7 +55,7 @@ function parseDragPayload(e: DragEvent<Element>): { linkId: string; from: ShelfT
     const o = JSON.parse(raw) as { linkId?: unknown; from?: unknown };
     if (typeof o.linkId !== "string") return null;
     const from = o.from;
-    if (from !== "fridge" && from !== "freezer" && from !== "trash") return null;
+    if (from !== "fridge" && !isColdShelfTab(from)) return null;
     return { linkId: o.linkId, from };
   } catch {
     return null;
@@ -71,17 +79,14 @@ export function AppShell() {
   const [dragOver, setDragOver] = useState<ShelfTab | null>(null);
   const [pasteBusy, setPasteBusy] = useState(false);
   const [pasteError, setPasteError] = useState<string | null>(null);
-  const [addLinkOpen, setAddLinkOpen] = useState(false);
   const [activeLinks, setActiveLinks] = useState<FridgeLink[]>([]);
   const [frozenLinks, setFrozenLinks] = useState<FridgeLink[]>([]);
-  const [trashedLinks, setTrashedLinks] = useState<FridgeLink[]>([]);
   const [settings, setSettings] = useState<UserSettings>({
     reminderDayOffsets: [...DEFAULT_REMINDER_OFFSETS],
     notificationsEnabled: true,
   });
   const [editingLink, setEditingLink] = useState<FridgeLink | null>(null);
   const [inbox, setInbox] = useState<ReminderInboxItem[]>([]);
-  const [linkSearch, setLinkSearch] = useState("");
   const reminderDedupe = useRef(new Set<string>());
 
   useEffect(() => {
@@ -90,15 +95,12 @@ export function AppShell() {
       const p = loadDemoPayload();
       const active = sortActiveShelfLinks(p.links.filter((l) => l.state === "active"));
       const frozen = sortFrozenShelfLinks(p.links.filter((l) => l.state === "frozen"));
-      const trashed = p.links.filter((l) => l.state === "trashed").sort((a, b) => (b.trashedAt ?? 0) - (a.trashedAt ?? 0));
       setActiveLinks(active);
       setFrozenLinks(frozen);
-      setTrashedLinks(trashed);
       setSettings(p.settings);
     } catch {
       setActiveLinks([]);
       setFrozenLinks([]);
-      setTrashedLinks([]);
       setSettings({
         reminderDayOffsets: [...DEFAULT_REMINDER_OFFSETS],
         notificationsEnabled: true,
@@ -110,8 +112,8 @@ export function AppShell() {
 
   useEffect(() => {
     if (!demoMode || !demoHydrated) return;
-    saveDemoPayload({ links: [...activeLinks, ...frozenLinks, ...trashedLinks], settings });
-  }, [demoMode, demoHydrated, activeLinks, frozenLinks, trashedLinks, settings]);
+    saveDemoPayload({ links: [...activeLinks, ...frozenLinks], settings });
+  }, [demoMode, demoHydrated, activeLinks, frozenLinks, settings]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && isDemoSignedIn()) return;
@@ -129,12 +131,10 @@ export function AppShell() {
     if (demoMode || !user) return;
     const unsubA = subscribeActiveLinks(user.uid, setActiveLinks);
     const unsubF = subscribeFrozenLinks(user.uid, setFrozenLinks);
-    const unsubT = subscribeTrashedLinks(user.uid, setTrashedLinks);
     const unsubS = subscribeUserSettings(user.uid, setSettings);
     return () => {
       unsubA();
       unsubF();
-      unsubT();
       unsubS();
     };
   }, [demoMode, user]);
@@ -145,40 +145,28 @@ export function AppShell() {
     return () => window.removeEventListener("dragend", clear);
   }, []);
 
-  const recoverableTrash = useMemo(() => {
-    const now = Date.now();
-    return trashedLinks.filter((l) => {
-      if (l.trashedAt == null) return false;
-      return now - l.trashedAt < TRASH_RETENTION_MS;
-    });
-  }, [trashedLinks]);
+  const gridLinks = useMemo(() => {
+    if (tab === "fridge") return activeLinks;
+    return sortFrozenShelfLinks(frozenLinks.filter((l) => linkFrozenZone(l) === tab));
+  }, [tab, activeLinks, frozenLinks]);
 
-  const gridLinks =
-    tab === "fridge" ? activeLinks : tab === "freezer" ? frozenLinks : recoverableTrash;
+  const freezerCount = useMemo(
+    () => frozenLinks.filter((l) => linkFrozenZone(l) === "freezer").length,
+    [frozenLinks]
+  );
+  const meatCount = useMemo(
+    () => frozenLinks.filter((l) => linkFrozenZone(l) === "meat").length,
+    [frozenLinks]
+  );
+  const fruitCount = useMemo(
+    () => frozenLinks.filter((l) => linkFrozenZone(l) === "fruit").length,
+    [frozenLinks]
+  );
 
-  /** With a dig query, match across fridge + freezer + trash; otherwise current tab only. */
-  const displayRows = useMemo(() => {
-    const q = linkSearch.trim().toLowerCase();
-    if (!q) {
-      return gridLinks.map((link) => ({ link, shelf: tab }));
-    }
-    const rows: { link: FridgeLink; shelf: ShelfTab }[] = [];
-    const pushIfMatch = (link: FridgeLink, shelf: ShelfTab) => {
-      if (link.title.toLowerCase().includes(q) || link.url.toLowerCase().includes(q)) {
-        rows.push({ link, shelf });
-      }
-    };
-    for (const link of activeLinks) pushIfMatch(link, "fridge");
-    for (const link of frozenLinks) pushIfMatch(link, "freezer");
-    for (const link of recoverableTrash) pushIfMatch(link, "trash");
-    rows.sort((a, b) => {
-      const pa = a.link.pinned ? 1 : 0;
-      const pb = b.link.pinned ? 1 : 0;
-      if (pa !== pb) return pb - pa;
-      return b.link.createdAt - a.link.createdAt;
-    });
-    return rows;
-  }, [linkSearch, tab, gridLinks, activeLinks, frozenLinks, recoverableTrash]);
+  const displayRows = useMemo(
+    () => gridLinks.map((link) => ({ link, shelf: tab })),
+    [gridLinks, tab]
+  );
 
   useEffect(() => {
     if (!settings.notificationsEnabled) return;
@@ -198,7 +186,7 @@ export function AppShell() {
             [{ linkId: link.id, title: link.title, offsets: [offset] }, ...prev].slice(0, 50)
           );
           if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-            new Notification(`LinkFridge — day ${offset}`, { body: link.title });
+            new Notification(`Reminder — day ${offset}`, { body: link.title });
           }
         }
       }
@@ -236,7 +224,7 @@ export function AppShell() {
               typeof Notification !== "undefined" &&
               Notification.permission === "granted"
             ) {
-              new Notification(`LinkFridge — day ${offset}`, { body: link.title });
+              new Notification(`Reminder — day ${offset}`, { body: link.title });
             }
           } catch {
             reminderDedupe.current.delete(key);
@@ -268,15 +256,18 @@ export function AppShell() {
     [demoMode, user]
   );
 
-  const handleSaveTitle = useCallback(
-    async (linkId: string, title: string) => {
+  const handleSaveLink = useCallback(
+    async (linkId: string, patch: { title: string; url: string }) => {
+      const url = normalizeLinkUrl(patch.url);
       if (demoMode) {
-        setActiveLinks((prev) => prev.map((l) => (l.id === linkId ? { ...l, title } : l)));
-        setFrozenLinks((prev) => prev.map((l) => (l.id === linkId ? { ...l, title } : l)));
+        const apply = (l: FridgeLink) =>
+          l.id === linkId ? { ...l, title: patch.title, url } : l;
+        setActiveLinks((prev) => prev.map(apply));
+        setFrozenLinks((prev) => prev.map(apply));
         return;
       }
       if (!user) return;
-      await updateLinkTitle(user.uid, linkId, title);
+      await updateLinkDetails(user.uid, linkId, { title: patch.title, url });
     },
     [demoMode, user]
   );
@@ -305,76 +296,100 @@ export function AppShell() {
   );
 
   const handleFreeze = useCallback(
-    async (linkId: string) => {
+    async (linkId: string, zone: FrozenZone = "freezer") => {
+      const moved = activeLinks.find((l) => l.id === linkId);
+      if (!moved) return;
+      const now = Date.now();
+      const optimistic: FridgeLink = {
+        ...moved,
+        state: "frozen",
+        frozenAt: now,
+        trashedAt: null,
+        frozenZone: zone,
+      };
+
       if (demoMode) {
-        const moved = activeLinks.find((l) => l.id === linkId);
-        if (!moved) return;
-        const now = Date.now();
         setActiveLinks((p) => p.filter((l) => l.id !== linkId));
-        setFrozenLinks((fp) => [{ ...moved, state: "frozen", frozenAt: now, trashedAt: null }, ...fp]);
+        setFrozenLinks((fp) => sortFrozenShelfLinks([optimistic, ...fp]));
         return;
       }
       if (!user) return;
-      await freezeLink(user.uid, linkId);
+      setActiveLinks((p) => p.filter((l) => l.id !== linkId));
+      setFrozenLinks((fp) => sortFrozenShelfLinks([optimistic, ...fp]));
+      try {
+        await freezeLink(user.uid, linkId, zone);
+      } catch {
+        setFrozenLinks((fp) => fp.filter((l) => l.id !== linkId));
+        setActiveLinks((ap) => sortActiveShelfLinks([moved, ...ap]));
+      }
     },
     [demoMode, user, activeLinks]
   );
 
-  const handleUnfreeze = useCallback(
-    async (linkId: string) => {
+  const handleMoveFrozenZone = useCallback(
+    async (linkId: string, zone: FrozenZone) => {
       if (demoMode) {
-        const moved = frozenLinks.find((l) => l.id === linkId);
-        if (!moved) return;
-        setFrozenLinks((p) => p.filter((l) => l.id !== linkId));
-        setActiveLinks((ap) => [{ ...moved, state: "active", frozenAt: null, trashedAt: null }, ...ap]);
+        setFrozenLinks((prev) =>
+          sortFrozenShelfLinks(prev.map((l) => (l.id === linkId ? { ...l, frozenZone: zone } : l)))
+        );
         return;
       }
       if (!user) return;
-      await unfreezeLink(user.uid, linkId);
+      const prev = frozenLinks.find((l) => l.id === linkId);
+      if (!prev) return;
+      const previousZone = linkFrozenZone(prev);
+      setFrozenLinks((p) =>
+        sortFrozenShelfLinks(p.map((l) => (l.id === linkId ? { ...l, frozenZone: zone } : l)))
+      );
+      try {
+        await setFrozenZone(user.uid, linkId, zone);
+      } catch {
+        setFrozenLinks((p) =>
+          sortFrozenShelfLinks(
+            p.map((l) => (l.id === linkId ? { ...l, frozenZone: previousZone } : l))
+          )
+        );
+      }
     },
     [demoMode, user, frozenLinks]
   );
 
-  const handleTrash = useCallback(
+  const handleUnfreeze = useCallback(
+    async (linkId: string) => {
+      const moved = frozenLinks.find((l) => l.id === linkId);
+      if (!moved) return;
+      const frozenSnapshot = { ...moved };
+      const optimisticActive: FridgeLink = {
+        ...moved,
+        state: "active",
+        frozenAt: null,
+        frozenZone: null,
+        trashedAt: null,
+      };
+
+      if (demoMode) {
+        setFrozenLinks((p) => p.filter((l) => l.id !== linkId));
+        setActiveLinks((ap) => sortActiveShelfLinks([optimisticActive, ...ap]));
+        return;
+      }
+      if (!user) return;
+      setFrozenLinks((p) => p.filter((l) => l.id !== linkId));
+      setActiveLinks((ap) => sortActiveShelfLinks([optimisticActive, ...ap]));
+      try {
+        await unfreezeLink(user.uid, linkId);
+      } catch {
+        setActiveLinks((ap) => ap.filter((l) => l.id !== linkId));
+        setFrozenLinks((fp) => sortFrozenShelfLinks([frozenSnapshot, ...fp]));
+      }
+    },
+    [demoMode, user, frozenLinks]
+  );
+
+  const handleDeleteLink = useCallback(
     async (linkId: string) => {
       if (demoMode) {
-        const now = Date.now();
-        const moved =
-          activeLinks.find((l) => l.id === linkId) ?? frozenLinks.find((l) => l.id === linkId);
-        if (!moved) return;
         setActiveLinks((p) => p.filter((l) => l.id !== linkId));
         setFrozenLinks((p) => p.filter((l) => l.id !== linkId));
-        setTrashedLinks((tp) => [
-          { ...moved, state: "trashed", trashedAt: now, frozenAt: null },
-          ...tp,
-        ]);
-        return;
-      }
-      if (!user) return;
-      await softTrashLink(user.uid, linkId);
-    },
-    [demoMode, user, activeLinks, frozenLinks]
-  );
-
-  const handleRestore = useCallback(
-    async (linkId: string) => {
-      if (demoMode) {
-        const t = trashedLinks.find((l) => l.id === linkId);
-        if (!t) return;
-        setTrashedLinks((prev) => prev.filter((l) => l.id !== linkId));
-        setActiveLinks((prev) => [{ ...t, state: "active", trashedAt: null, frozenAt: null }, ...prev]);
-        return;
-      }
-      if (!user) return;
-      await restoreLink(user.uid, linkId);
-    },
-    [demoMode, user, trashedLinks]
-  );
-
-  const handlePermanentDelete = useCallback(
-    async (linkId: string) => {
-      if (demoMode) {
-        setTrashedLinks((prev) => prev.filter((l) => l.id !== linkId));
         return;
       }
       if (!user) return;
@@ -391,7 +406,7 @@ export function AppShell() {
       try {
         text = await navigator.clipboard.readText();
       } catch {
-        setPasteError("Clipboard unavailable — allow permission or use the field below.");
+        setPasteError("Clipboard unavailable — allow permission in the browser, then try again.");
         return;
       }
       const preview = await fetchLinkPreview(text);
@@ -418,18 +433,16 @@ export function AppShell() {
       if (!payload) return;
       const { linkId, from } = payload;
 
-      if (target === "freezer") {
-        if (from === "fridge") void handleFreeze(linkId);
+      if (target === "fridge") {
+        if (from !== "fridge") void handleUnfreeze(linkId);
         return;
       }
-      if (target === "trash") {
-        if (from === "fridge" || from === "freezer") void handleTrash(linkId);
-        return;
+      if (isColdShelfTab(target)) {
+        if (from === "fridge") void handleFreeze(linkId, target);
+        else if (from !== target) void handleMoveFrozenZone(linkId, target);
       }
-      if (from === "freezer") void handleUnfreeze(linkId);
-      else if (from === "trash") void handleRestore(linkId);
     },
-    [handleFreeze, handleTrash, handleUnfreeze, handleRestore]
+    [handleFreeze, handleMoveFrozenZone, handleUnfreeze]
   );
 
   const exitDemo = useCallback(() => {
@@ -458,141 +471,137 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      <Header
-        inbox={inbox}
-        onClearInbox={onClearInbox}
-        demoExit={demoMode ? exitDemo : undefined}
-        searchQuery={linkSearch}
-        onSearchChange={setLinkSearch}
-        onOpenAddLink={() => setAddLinkOpen(true)}
-      />
-      {demoMode && (
-        <div className="border-b border-black/5 bg-moo-accent/10">
-          <p className="mx-auto max-w-6xl px-4 py-2.5 text-xs leading-snug text-moo-brown md:px-6">
-            <span className="font-medium text-moo-dark">Demo mode</span> — links stay in this browser only
-            (localStorage). Sign in with Google for cloud sync. Use the door icon in the header to exit demo.
-          </p>
-        </div>
-      )}
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col min-h-0 p-4 md:p-6">
-        <FridgeShelves
-          tab={tab}
-          onTab={setTab}
-          frozenCount={frozenLinks.length}
-          trashCount={recoverableTrash.length}
-          dragOver={dragOver}
-          onDragOverShelf={onDragOverShelf}
-          onDropShelf={onDropShelf}
-          onQuickPaste={onQuickPaste}
-          pasteBusy={pasteBusy}
-          pasteError={pasteError}
-          dueReminderLine={
-            dueCount > 0 ? (
-              <p className="text-sm text-moo-brown">
-                {dueCount} reminder{dueCount === 1 ? "" : "s"} due in the fridge — check the bell
-              </p>
-            ) : undefined
-          }
-        />
+    <div className="relative flex min-h-[100dvh] flex-col bg-white">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col px-2 pb-8 pt-2 sm:px-3 md:px-4 md:pb-10">
+        <div className="flex min-h-0 flex-1 flex-row items-stretch gap-2 sm:gap-3 md:gap-4">
+          <FridgeShelves
+            tab={tab}
+            onTab={setTab}
+            fridgeCount={activeLinks.length}
+            frozenCount={freezerCount}
+            meatCount={meatCount}
+            fruitCount={fruitCount}
+            dragOver={dragOver}
+            onDragOverShelf={onDragOverShelf}
+            onDropShelf={onDropShelf}
+          />
 
-        <div
-          className={`flex-1 flex flex-col min-h-0 rounded-2xl transition ${
-            tab !== "fridge" && dragOver === "fridge"
-              ? "ring-2 ring-moo-accent/45 ring-offset-2 ring-offset-white"
-              : ""
-          }`}
-          onDragOver={(e) => {
-            if (tab === "fridge") return;
-            onDragOverShelf("fridge", e);
-          }}
-          onDrop={(e) => {
-            if (tab === "fridge") return;
-            onDropShelf("fridge", e);
-          }}
-        >
-          {!linkSearch.trim() && gridLinks.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-moo-brown text-center p-8 rounded-2xl border border-dashed border-black/10 bg-white/50">
-              {tab === "fridge" ? (
-                <p>
-                  Fridge is empty. Tap <strong className="text-moo-dark">Paste</strong> next to Trash above, or use + in the header.
-                </p>
-              ) : tab === "freezer" ? (
-                <p>Freezer is empty. Drag from the fridge onto Freezer, or Edit → Move to freezer.</p>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {inbox.length > 0 ? (
+              <div className="mb-2 flex flex-wrap items-start gap-x-2 gap-y-1.5 rounded-xl border border-black/[0.06] bg-moo-cream/40 px-2.5 py-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-moo-brown">Reminders</span>
+                <ul className="flex min-w-0 flex-1 flex-wrap gap-1">
+                  {inbox.map((item) => (
+                    <li
+                      key={`${item.linkId}-${item.offsets.join(",")}-${item.title.slice(0, 8)}`}
+                      className="max-w-[12rem] truncate rounded-md border border-black/5 bg-white/90 px-2 py-0.5 text-[11px] font-medium text-moo-dark"
+                      title={item.title}
+                    >
+                      {item.title}
+                      <span className="ml-1 text-[10px] font-normal text-moo-brown">day {item.offsets.join(", ")}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={onClearInbox}
+                  className="shrink-0 text-[11px] font-semibold text-moo-accent hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
+
+            {dueCount > 0 ? (
+              <p className="mb-2 text-sm text-moo-brown">
+                {dueCount} reminder{dueCount === 1 ? "" : "s"} due in the fridge — when they fire, they appear in the list above.
+              </p>
+            ) : null}
+
+            <div
+              className={`flex min-h-0 flex-1 flex-col rounded-2xl transition ${
+                tab !== "fridge" && dragOver === "fridge"
+                  ? "ring-2 ring-moo-accent/45 ring-offset-2 ring-offset-white"
+                  : ""
+              }`}
+              onDragOver={(e) => {
+                if (tab === "fridge") return;
+                onDragOverShelf("fridge", e);
+              }}
+              onDrop={(e) => {
+                if (tab === "fridge") return;
+                onDropShelf("fridge", e);
+              }}
+            >
+              {gridLinks.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-6 rounded-2xl border border-dashed border-black/10 bg-white/50 p-6 text-center text-moo-brown sm:p-8">
+                  {tab === "fridge" ? (
+                    <div className="h-48 w-full max-w-[12rem] shrink-0 sm:h-52">
+                      <FridgePastePlusCard onPaste={onQuickPaste} disabled={pasteBusy} />
+                    </div>
+                  ) : (
+                    <p className="max-w-md text-sm leading-relaxed">
+                      {tab === "freezer" ? (
+                        <>
+                          Nothing in the freezer. Drag from the fridge onto the{" "}
+                          <strong className="text-moo-dark">snowflake</strong> shelf, or use Edit link to pick a cold
+                          shelf.
+                        </>
+                      ) : tab === "meat" ? (
+                        <>
+                          Meat locker is empty. Drag from the fridge onto the{" "}
+                          <strong className="text-moo-dark">meat locker</strong> shelf on the left, or use Edit link.
+                        </>
+                      ) : (
+                        <>
+                          Fruit locker is empty. Drag from the fridge onto the{" "}
+                          <strong className="text-moo-dark">fruit locker</strong> shelf on the left, or use Edit link.
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
               ) : (
-                <p>Trash is empty. Drag a card onto Trash, or move a link to trash from the fridge.</p>
+                <div className="min-h-0 flex-1 overflow-auto pb-6 pt-2 sm:pt-2.5">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+                    {tab === "fridge" ? (
+                      <div key="__paste_plus__" className="flex min-h-0 h-full min-w-0 flex-col">
+                        <FridgePastePlusCard onPaste={onQuickPaste} disabled={pasteBusy} />
+                      </div>
+                    ) : null}
+                    {displayRows.map(({ link, shelf }) => (
+                      <div key={link.id} className="flex min-h-0 h-full min-w-0 flex-col space-y-2">
+                        <FridgeLinkCard
+                          link={link}
+                          dragSource={shelf}
+                          onEdit={setEditingLink}
+                          onDelete={(l) => void handleDeleteLink(l.id)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-          ) : linkSearch.trim() && displayRows.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/10 bg-white/50 p-8 text-center text-moo-brown">
-              <p className="text-sm font-medium text-moo-dark">{`Nothing dug up for “${linkSearch.trim()}”`}</p>
-              <p className="text-xs">Fridge, freezer, and trash came up empty. Try another clue or clear the dig.</p>
-            </div>
-          ) : (
-            <div className="flex-1 min-h-0 overflow-auto pb-8">
-              {linkSearch.trim() ? (
-                <p className="mb-3 text-xs text-moo-brown/90">
-                  Digging through <strong className="text-moo-dark">fridge</strong>, <strong className="text-moo-dark">freezer</strong>, and{" "}
-                  <strong className="text-moo-dark">trash</strong>.
-                </p>
-              ) : null}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-                {displayRows.map(({ link, shelf }) => (
-                  <div key={link.id} className="min-w-0 space-y-2">
-                    {linkSearch.trim() ? (
-                      <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-moo-brown">
-                        {shelf === "fridge" ? "Fridge" : shelf === "freezer" ? "Freezer" : "Trash"}
-                      </p>
-                    ) : null}
-                    <FridgeLinkCard
-                      link={link}
-                      dragSource={shelf}
-                      onEdit={shelf === "fridge" || shelf === "freezer" ? setEditingLink : undefined}
-                      onTogglePin={
-                        shelf === "fridge" || shelf === "freezer"
-                          ? (l) => void handleTogglePin(l.id)
-                          : undefined
-                      }
-                    />
-                    {shelf === "trash" && (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void handleRestore(link.id)}
-                          className="flex-1 rounded-lg border border-black/8 bg-white px-1.5 py-2 text-center text-xs font-medium text-moo-dark transition hover:bg-black/[0.03]"
-                        >
-                          Restore
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handlePermanentDelete(link.id)}
-                          className="flex-1 rounded-lg border border-red-200/90 bg-red-50/80 px-1.5 py-2 text-center text-xs font-medium text-red-700 transition hover:bg-red-100/90"
-                          title="Permanently delete this link"
-                        >
-                          Delete forever
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </main>
-
-      <AddLinkModal open={addLinkOpen} onClose={() => setAddLinkOpen(false)} onAdd={handleAdd} />
 
       {editingLink && (
         <EditLinkModal
           link={fridgeLinkToUiLink(editingLink)}
-          onSave={handleSaveTitle}
-          onRemove={handleTrash}
+          onSave={handleSaveLink}
           onClose={() => setEditingLink(null)}
-          onFreeze={
+          demoMode={demoMode}
+          onExitDemo={demoMode ? exitDemo : undefined}
+          onTogglePin={async () => {
+            await handleTogglePin(editingLink.id);
+          }}
+          activeFrozenZone={editingLink.state === "frozen" ? linkFrozenZone(editingLink) : null}
+          onFreezeTo={
             editingLink.state === "active"
-              ? async () => {
-                  await handleFreeze(editingLink.id);
+              ? async (zone) => {
+                  await handleFreeze(editingLink.id, zone);
                 }
               : undefined
           }
@@ -603,8 +612,26 @@ export function AppShell() {
                 }
               : undefined
           }
+          onRelocateFrozen={
+            editingLink.state === "frozen"
+              ? async (zone) => {
+                  await handleMoveFrozenZone(editingLink.id, zone);
+                }
+              : undefined
+          }
         />
       )}
+
+      {pasteError != null && pasteError !== "" ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)]">
+          <p
+            className="pointer-events-auto max-w-md rounded-2xl border border-red-200/80 bg-red-50/95 px-4 py-2.5 text-center text-xs leading-snug text-red-800 shadow-lg backdrop-blur-sm"
+            role="alert"
+          >
+            {pasteError}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 {
-  "name": "LinkFridge",
-  "short_name": "LinkFridge",
+  "name": "Chill your links",
+  "short_name": "Chill links",
   "description": "Save links in the cloud with Google. Reminders so saved links are not forgotten.",
   "start_url": "/",
   "display": "standalone",
@@ -9,13 +9,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/logogo.png",
+      "src": "/linkfridge.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/logogo.png",
+      "src": "/linkfridge.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"

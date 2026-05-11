@@ -6,6 +6,7 @@ import { getFirestore, type Firestore } from "firebase/firestore";
  * Read each `NEXT_PUBLIC_*` as a direct `process.env.…` expression so Next.js
  * can inline values into the client bundle (dynamic lookups stay empty).
  */
+/** Firebase is on whenever the web app API key is set (dev and production). Use demo on /login without filling keys. */
 export function isFirebaseConfigured(): boolean {
   const k = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   return typeof k === "string" && k.trim().length > 0;

@@ -27,11 +27,13 @@ export async function ensureUserProfile(uid: string, email: string | null): Prom
 export function parseUserSettings(data: Record<string, unknown> | undefined): UserSettings {
   const raw = data?.reminderDayOffsets;
   let reminderDayOffsets: [number, number] = [...DEFAULT_REMINDER_OFFSETS];
-  if (Array.isArray(raw) && raw.length >= 2) {
+  if (Array.isArray(raw) && raw.length >= 1) {
     const a = Number(raw[0]);
-    const b = Number(raw[1]);
+    const b = raw.length >= 2 ? Number(raw[1]) : a;
     if (Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b >= 0) {
-      reminderDayOffsets = [Math.min(a, b), Math.max(a, b)] as [number, number];
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      reminderDayOffsets = [lo, hi] as [number, number];
     }
   }
   const notificationsEnabled =

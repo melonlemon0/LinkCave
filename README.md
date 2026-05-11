@@ -1,4 +1,4 @@
-# LinkFridge
+# Chill your links
 
 Save links with thumbnails in the **cloud** (Firebase). Sign in with **Google**. **Fridge** and **Trash** tabs, **30-day trash recovery**, and **reminder nudges** (default day 3 and day 5 after save — configurable in Settings). Browser notifications work if the user allows them.
 
@@ -11,13 +11,15 @@ Save links with thumbnails in the **cloud** (Firebase). Sign in with **Google**.
    npm install
    ```
 
-2. **Firebase**
+2. **Firebase** (for cloud sync / production; optional while you only use demo locally)
 
    - Create a project at [Firebase Console](https://console.firebase.google.com).
    - **Authentication** → Sign-in method → enable **Google**.
    - **Firestore** → Create database (production mode is fine once rules are deployed).
    - **Project settings** (gear) → Your apps → **Web** app → copy the config values.
-   - Copy `.env.local.example` to `.env.local` and paste the keys (all `NEXT_PUBLIC_FIREBASE_*` values).
+   - Copy `.env.local.example` to `.env.local` and paste the keys when you need them.
+
+   **Local development:** If `.env.local` includes the Firebase keys, **Continue with Google** and Firestore work on localhost as well. Leave keys unset to use **Try demo (local storage)** only. In the Firebase console → **Authentication** → **Settings** → **Authorized domains**, ensure `localhost` is listed for local sign-in.
 
 3. **Firestore security rules**
 
@@ -38,7 +40,7 @@ Save links with thumbnails in the **cloud** (Firebase). Sign in with **Google**.
    npm run dev
    ```
 
-   Open [http://localhost:3005](http://localhost:3005) (see `package.json` dev port), sign in with Google, then save links.
+   Open [http://localhost:3005](http://localhost:3005) (see `package.json` dev port). With Firebase keys in `.env.local`, use **Continue with Google**; without keys, use **Try demo (local storage)** on `/login`.
 
 5. **PWA icons** (optional)
 

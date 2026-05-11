@@ -11,12 +11,16 @@ import { doc, getDoc } from "firebase/firestore";
 import { getFirestoreDb } from "@/lib/firebase/config";
 import { isDemoSignedIn, loadDemoPayload, saveDemoPayload, signOutDemo } from "@/lib/local/demo-store";
 import { AppLoadingScreen } from "@/components/AppLoadingScreen";
-import { IconChevronLeft, IconLogOut } from "@/components/icons";
+import { IconChevronLeft, IconFridge, IconLogOut, IconSnowflake } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useState } from "react";
 import type { UserSettings } from "@/types/linkfridge";
 import { DEFAULT_REMINDER_OFFSETS } from "@/types/linkfridge";
+
+function singleReminderDay(offsets: [number, number]): number {
+  return Math.min(offsets[0], offsets[1]);
+}
 
 export default function SettingsPage() {
   const { user, loading: authLoading, configured, signOut } = useAuth();
@@ -30,8 +34,7 @@ export default function SettingsPage() {
     reminderDayOffsets: [...DEFAULT_REMINDER_OFFSETS],
     notificationsEnabled: true,
   });
-  const [dayA, setDayA] = useState(String(DEFAULT_REMINDER_OFFSETS[0]));
-  const [dayB, setDayB] = useState(String(DEFAULT_REMINDER_OFFSETS[1]));
+  const [day, setDay] = useState(String(singleReminderDay(DEFAULT_REMINDER_OFFSETS)));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
@@ -44,8 +47,7 @@ export default function SettingsPage() {
     if (demoMode) {
       const p = loadDemoPayload();
       setSettings(p.settings);
-      setDayA(String(p.settings.reminderDayOffsets[0]));
-      setDayB(String(p.settings.reminderDayOffsets[1]));
+      setDay(String(singleReminderDay(p.settings.reminderDayOffsets)));
       return;
     }
     if (authLoading) return;
@@ -56,23 +58,21 @@ export default function SettingsPage() {
     void ensureUserProfile(user.uid, user.email);
     const unsub = subscribeUserSettings(user.uid, (s) => {
       setSettings(s);
-      setDayA(String(s.reminderDayOffsets[0]));
-      setDayB(String(s.reminderDayOffsets[1]));
+      setDay(String(singleReminderDay(s.reminderDayOffsets)));
     });
     return () => unsub();
   }, [demoMode, authLoading, configured, user, router]);
 
   async function saveSettings() {
-    const a = Number.parseInt(dayA, 10);
-    const b = Number.parseInt(dayB, 10);
-    if (!Number.isFinite(a) || !Number.isFinite(b) || a < 0 || b < 0) {
-      setError("Reminder days must be non-negative numbers.");
+    const n = Number.parseInt(day, 10);
+    if (!Number.isFinite(n) || n < 0) {
+      setError("Invalid");
       return;
     }
     setError(null);
     setSaving(true);
     const nextSettings: UserSettings = {
-      reminderDayOffsets: [Math.min(a, b), Math.max(a, b)],
+      reminderDayOffsets: [n, n],
       notificationsEnabled: settings.notificationsEnabled,
     };
     try {
@@ -90,7 +90,7 @@ export default function SettingsPage() {
         await updateUserSettings(user.uid, nextSettings);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      setError(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -144,7 +144,7 @@ export default function SettingsPage() {
   if (authLoading && !demoMode) {
     return (
       <main className="min-h-screen">
-        <AppLoadingScreen message="Loading settings…" />
+        <AppLoadingScreen message="…" />
       </main>
     );
   }
@@ -153,112 +153,90 @@ export default function SettingsPage() {
     return null;
   }
 
+  const inputClass =
+    "w-full max-w-[5.5rem] rounded-2xl border border-black/5 bg-white/90 px-2 py-2.5 text-center text-sm font-semibold tabular-nums text-moo-dark shadow-inner focus:border-transparent focus:outline-none focus:ring-2 focus:ring-moo-accent/30";
+
   return (
-    <main className="min-h-screen bg-white p-4 md:p-8">
-      <div className="max-w-md mx-auto">
-        <div className="mb-8">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium text-moo-dark shadow-apple transition hover:bg-moo-cream/80"
-          >
-            <IconChevronLeft className="h-4 w-4 text-moo-accent" />
-            Back to fridge
-          </Link>
-        </div>
-        <h1 className="text-2xl font-semibold text-moo-dark mb-2">Settings</h1>
-        <p className="text-moo-brown text-sm mb-8">
-          {demoMode ? (
-            <>
-              <strong className="text-moo-dark">Demo mode</strong> — reminders and preferences are saved in
-              localStorage on this device.
-            </>
-          ) : (
-            <>
-              Signed in as <span className="font-medium text-moo-dark">{user?.email}</span>
-            </>
-          )}
-        </p>
-
-        <section className="bg-white rounded-2xl border border-black/8 shadow-apple p-5 mb-6">
-          <h2 className="font-semibold text-moo-dark mb-3">Reminders</h2>
-          <p className="text-sm text-moo-brown mb-4">
-            After you save a link, LinkFridge nudges you on these day counts (from the save date),
-            so nothing sits forgotten.
-          </p>
-          <div className="flex flex-wrap gap-3 items-end mb-4">
-            <div>
-              <label className="block text-xs text-moo-brown mb-1">First reminder (days)</label>
-              <input
-                type="number"
-                min={0}
-                value={dayA}
-                onChange={(e) => setDayA(e.target.value)}
-                className="w-24 px-3 py-2 rounded-xl border border-black/8"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-moo-brown mb-1">Second reminder (days)</label>
-              <input
-                type="number"
-                min={0}
-                value={dayB}
-                onChange={(e) => setDayB(e.target.value)}
-                className="w-24 px-3 py-2 rounded-xl border border-black/8"
-              />
-            </div>
+    <div className="relative flex min-h-[100dvh] flex-col bg-white">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-2 pb-10 pt-2 sm:px-3 md:px-4 md:pb-12 md:pt-3">
+        <div className="mx-auto w-full max-w-sm">
+          <div className="mb-1.5">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-0.5 text-moo-accent hover:opacity-80"
+              aria-label="Back to fridge"
+            >
+              <IconChevronLeft className="h-5 w-5 shrink-0" aria-hidden />
+            </Link>
           </div>
-          {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void saveSettings()}
-            className="px-4 py-2 rounded-xl bg-moo-accent text-white font-medium disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save reminder schedule"}
-          </button>
-        </section>
-
-        <section className="bg-white rounded-2xl border border-black/8 shadow-apple p-5 mb-6">
-          <h2 className="font-semibold text-moo-dark mb-3">Notifications</h2>
-          <label className="flex items-center gap-3 cursor-pointer mb-4">
-            <input
-              type="checkbox"
-              checked={settings.notificationsEnabled}
-              onChange={() => void toggleNotifications()}
-              className="rounded border-black/20"
-            />
-            <span className="text-sm text-moo-dark">Enable reminder notifications</span>
-          </label>
-          {notifPermission !== "unsupported" && (
-            <div className="space-y-2">
-              <p className="text-xs text-moo-brown">
-                Browser status: <span className="font-medium">{notifPermission}</span>
-              </p>
-              {notifPermission !== "granted" && (
-                <button
-                  type="button"
-                  onClick={() => void requestBrowserNotifications()}
-                  className="text-sm px-4 py-2 rounded-xl border border-black/10 hover:bg-black/5"
-                >
-                  Allow browser notifications
-                </button>
-              )}
+          <section className="overflow-hidden rounded-2xl border border-emerald-200/45 bg-gradient-to-b from-sky-100/95 via-cyan-50/90 to-emerald-100/95 p-4 shadow-sm sm:p-5">
+            <div className="flex items-center gap-2 border-b border-black/[0.06] pb-3 text-moo-dark">
+              <IconSnowflake className="h-4 w-4 shrink-0 text-sky-800/80" aria-hidden />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-moo-dark/75">Notify</span>
             </div>
-          )}
-          {notifPermission === "unsupported" && (
-            <p className="text-xs text-moo-brown">This browser does not support notifications.</p>
-          )}
-        </section>
+            <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-white/70 px-3 py-2.5">
+              <span className="text-sm text-moo-dark">On</span>
+              <input
+                type="checkbox"
+                checked={settings.notificationsEnabled}
+                onChange={() => void toggleNotifications()}
+                className="h-4 w-4 rounded border-sky-300 text-moo-accent focus:ring-moo-accent/30"
+              />
+            </label>
+            {notifPermission !== "unsupported" ? (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] capitalize text-moo-brown">{notifPermission}</span>
+                {notifPermission !== "granted" ? (
+                  <button
+                    type="button"
+                    onClick={() => void requestBrowserNotifications()}
+                    className="rounded-xl border border-black/[0.08] bg-white/90 px-2.5 py-1 text-[11px] font-medium text-moo-dark shadow-sm hover:bg-moo-cream/50"
+                  >
+                    Allow
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-2 text-[11px] text-moo-brown">—</p>
+            )}
 
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200/90 bg-red-50/70 px-4 py-3 text-sm font-medium text-red-700 shadow-apple transition hover:bg-red-50 sm:w-auto"
-        >
-          <IconLogOut className="h-[18px] w-[18px] shrink-0" />
-          {demoMode ? "Exit demo" : "Sign out"}
-        </button>
-      </div>
-    </main>
+            <div className="my-4 border-t border-black/[0.06]" />
+
+            <div className="flex items-center gap-2 text-moo-dark">
+              <IconFridge className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-moo-dark/75">Day</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                aria-label="Reminder day offset"
+                value={day}
+                onChange={(e) => setDay(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void saveSettings()}
+              className="mt-4 w-full rounded-2xl bg-moo-dark py-2.5 text-xs font-semibold text-white shadow-apple hover:opacity-[0.92] disabled:opacity-40"
+            >
+              {saving ? "…" : "Save"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-black/[0.08] bg-white/75 py-2.5 text-xs font-medium text-moo-dark shadow-sm hover:bg-white"
+            >
+              <IconLogOut className="h-4 w-4 shrink-0 opacity-60" aria-hidden />
+              {demoMode ? "Exit demo" : "Sign out"}
+            </button>
+          </section>
+        </div>
+      </main>
+    </div>
   );
 }

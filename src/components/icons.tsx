@@ -37,6 +37,23 @@ export function IconChevronLeft({ className = "h-4 w-4" }: { className?: string 
   );
 }
 
+export function IconSearch({ className = "h-[18px] w-[18px]" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <circle cx="11" cy="11" r="6.5" strokeLinecap="round" />
+      <path d="M16.5 16.5L21 21" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconMenu({ className = "h-[18px] w-[18px]" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconClipboard({ className = "h-[18px] w-[18px]" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
@@ -45,6 +62,18 @@ export function IconClipboard({ className = "h-[18px] w-[18px]" }: { className?:
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+/** Grocery cart — “fill the fridge” from clipboard. */
+export function IconShoppingCart({ className = "h-[18px] w-[18px]" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M6 6h15l-1.5 9h-12L6 6z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 6L5 3H2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="9" cy="20" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="20" r="1.25" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -71,11 +100,49 @@ export function IconLinkSliders({ className = "h-4 w-4" }: { className?: string 
   );
 }
 
+/** Fridge shelf — simple two-door outline. */
+export function IconFridge({ className = "h-9 w-9" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.45" aria-hidden>
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M5 12h14" strokeLinecap="round" />
+      <path d="M12 12V21" strokeLinecap="round" />
+      <path d="M9 6.5h6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /** Freezer shelf — geometric snowflake (stroke asterisk). */
 export function IconSnowflake({ className = "h-9 w-9" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.45" aria-hidden>
       <path d="M12 3v18M3 12h18M5.64 5.64l12.72 12.72M18.36 5.64L5.64 18.36" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Meat cold drawer — same stroke language as fridge (stacked drawers). */
+export function IconMeatLocker({ className = "h-9 w-9" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.45" aria-hidden>
+      <rect x="5.5" y="3.5" width="13" height="17" rx="2" />
+      <path d="M5.5 9.5h13M5.5 13.5h13M5.5 17.5h13" strokeLinecap="round" />
+      <path d="M15.5 6v-1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Fruit cold locker — fridge-family outline with vent / dots. */
+export function IconFruitLocker({ className = "h-9 w-9" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.45" aria-hidden>
+      <rect x="5.5" y="3.5" width="13" height="17" rx="2" />
+      <path d="M12 3.5V2" strokeLinecap="round" />
+      <path d="M5.5 10h13" strokeLinecap="round" />
+      <circle cx="9.25" cy="14" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="14.75" cy="14" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="9.25" cy="17.5" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="14.75" cy="17.5" r="1.15" fill="currentColor" stroke="none" />
     </svg>
   );
 }
