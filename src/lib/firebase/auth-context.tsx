@@ -11,11 +11,14 @@ import {
 } from "react";
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
+import { Capacitor } from "@capacitor/core";
 import { getFirebaseAuth, isFirebaseConfigured } from "./config";
 
 type AuthState = {
@@ -44,6 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, 12_000);
     try {
       const auth = getFirebaseAuth();
+      void getRedirectResult(auth).catch(() => {
+        /* no pending redirect */
+      });
       /** Session restore can lag the first listener tick; read sync state so UI does not hang. */
       const initial = auth.currentUser;
       setUser(initial);
@@ -75,6 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
+    if (Capacitor.isNativePlatform()) {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
     await signInWithPopup(auth, provider);
   }, []);
 

@@ -30,3 +30,9 @@ Thumbs.db
 # Local deploy tool folders
 .netlify
 .vercel
+
+# Capacitor / Xcode
+ios/App/Pods/
+ios/App/build/
+ios/capacitor-cordova-ios-plugins/
+*.xcuserstate
