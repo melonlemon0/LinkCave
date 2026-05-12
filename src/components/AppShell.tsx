@@ -30,10 +30,12 @@ import { sortActiveShelfLinks, sortFrozenShelfLinks } from "@/lib/linkfridge/sor
 import { fridgeLinkToUiLink } from "@/lib/linkfridge/to-ui-link";
 import { linkFrozenZone, type FridgeLink, type FrozenZone, type ShelfTab, type UserSettings } from "@/types/linkfridge";
 import { DEFAULT_REMINDER_OFFSETS } from "@/types/linkfridge";
+import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import type { DragEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AppLoadingScreen } from "./AppLoadingScreen";
+import { IconSettings } from "./icons";
 import { FridgeLinkCard } from "./FridgeLinkCard";
 import { FridgePastePlusCard } from "./FridgePastePlusCard";
 import { FridgeShelves } from "./FridgeShelves";
@@ -487,15 +489,36 @@ export function AppShell() {
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col bg-white">
+    <div
+      className={`relative flex min-h-[100dvh] flex-col ${
+        iosNativeUi ? "bg-transparent" : "bg-white"
+      }`}
+    >
+      {iosNativeUi ? (
+        <NextLink
+          href="/settings"
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          className="fixed right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.5rem,env(safe-area-inset-top))] z-[60] flex h-11 w-11 items-center justify-center rounded-full border border-white/35 bg-white/22 text-neutral-800 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-2xl backdrop-saturate-[1.8] transition active:scale-95 dark:border-white/12 dark:bg-white/[0.12] dark:text-white dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)]"
+          aria-label="Settings"
+          title="Settings"
+        >
+          <IconSettings className="h-[1.35rem] w-[1.35rem] opacity-90" />
+        </NextLink>
+      ) : null}
+
       <main
-        className={`mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col px-2 pt-2 sm:px-3 md:px-4 ${
+        className={`mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col px-2 sm:px-3 md:px-4 ${
           iosNativeUi
-            ? "pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-10"
-            : "pb-8 md:pb-10"
+            ? "pb-[calc(8.5rem+env(safe-area-inset-bottom))] pt-0 md:pb-10 md:pt-2"
+            : "pb-8 pt-2 md:pb-10"
         }`}
       >
-        <div className="flex min-h-0 flex-1 flex-col items-stretch gap-2 sm:gap-3 md:flex-row md:gap-4">
+        <div
+          className={`flex min-h-0 flex-1 flex-col items-stretch md:flex-row ${
+            iosNativeUi ? "gap-2" : "gap-2 sm:gap-3 md:gap-4"
+          }`}
+        >
           <FridgeShelves
             tab={tab}
             onTab={setTab}
@@ -510,7 +533,7 @@ export function AppShell() {
           />
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            {inbox.length > 0 ? (
+            {!iosNativeUi && inbox.length > 0 ? (
               <div className="mb-2 flex flex-wrap items-start gap-x-2 gap-y-1.5 rounded-xl border border-black/[0.06] bg-moo-cream/40 px-2.5 py-2">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-moo-brown">Reminders</span>
                 <ul className="flex min-w-0 flex-1 flex-wrap gap-1">
@@ -535,16 +558,24 @@ export function AppShell() {
               </div>
             ) : null}
 
-            {dueCount > 0 ? (
+            {!iosNativeUi && dueCount > 0 ? (
               <p className="mb-2 text-sm text-moo-brown">
                 {dueCount} reminder{dueCount === 1 ? "" : "s"} due in the fridge — when they fire, they appear in the list above.
               </p>
             ) : null}
 
             <div
-              className={`flex min-h-0 flex-1 flex-col rounded-2xl transition ${
-                tab !== "fridge" && dragOver === "fridge"
-                  ? "ring-2 ring-moo-accent/45 ring-offset-2 ring-offset-white"
+              className={`flex min-h-0 flex-1 flex-col transition ${
+                iosNativeUi
+                  ? ""
+                  : `rounded-2xl ${
+                      tab !== "fridge" && dragOver === "fridge"
+                        ? "ring-2 ring-moo-accent/45 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950"
+                        : ""
+                    }`
+              } ${
+                iosNativeUi && tab !== "fridge" && dragOver === "fridge"
+                  ? "ring-2 ring-white/30 ring-offset-2 ring-offset-transparent dark:ring-white/25"
                   : ""
               }`}
               onDragOver={(e) => {
@@ -557,47 +588,39 @@ export function AppShell() {
               }}
             >
               {gridLinks.length === 0 ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-6 rounded-2xl border border-dashed border-black/10 bg-white/50 p-6 text-center text-moo-brown sm:p-8">
-                  {tab === "fridge" ? (
-                    iosNativeUi ? (
-                      <p className="max-w-sm text-sm leading-relaxed">
-                        Fridge is empty. Tap the <strong className="text-moo-dark">paste</strong> button below to add
-                        a link from your clipboard.
-                      </p>
-                    ) : (
+                iosNativeUi ? (
+                  <div className="min-h-[40vh] flex-1" aria-hidden />
+                ) : (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-6 rounded-2xl border border-dashed border-black/10 bg-white/50 p-6 text-center text-moo-brown sm:p-8">
+                    {tab === "fridge" ? (
                       <div className="h-48 w-full max-w-[12rem] shrink-0 sm:h-52">
                         <FridgePastePlusCard onPaste={onQuickPaste} disabled={pasteBusy} />
                       </div>
-                    )
-                  ) : (
-                    <p className="max-w-md text-sm leading-relaxed">
-                      {iosNativeUi ? (
-                        <>
-                          Nothing in the freezer yet. Drag from the fridge onto the{" "}
-                          <strong className="text-moo-dark">snowflake</strong> shelf, or freeze from Edit link.
-                        </>
-                      ) : tab === "freezer" ? (
-                        <>
-                          Nothing in the freezer. Drag from the fridge onto the{" "}
-                          <strong className="text-moo-dark">snowflake</strong> shelf, or use Edit link to pick a cold
-                          shelf.
-                        </>
-                      ) : tab === "meat" ? (
-                        <>
-                          Meat locker is empty. Drag from the fridge onto the{" "}
-                          <strong className="text-moo-dark">meat locker</strong> shelf, or use Edit link.
-                        </>
-                      ) : (
-                        <>
-                          Fruit locker is empty. Drag from the fridge onto the{" "}
-                          <strong className="text-moo-dark">fruit locker</strong> shelf, or use Edit link.
-                        </>
-                      )}
-                    </p>
-                  )}
-                </div>
+                    ) : (
+                      <p className="max-w-md text-sm leading-relaxed">
+                        {tab === "freezer" ? (
+                          <>
+                            Nothing in the freezer. Drag from the fridge onto the{" "}
+                            <strong className="text-moo-dark">snowflake</strong> shelf, or use Edit link to pick a cold
+                            shelf.
+                          </>
+                        ) : tab === "meat" ? (
+                          <>
+                            Meat locker is empty. Drag from the fridge onto the{" "}
+                            <strong className="text-moo-dark">meat locker</strong> shelf, or use Edit link.
+                          </>
+                        ) : (
+                          <>
+                            Fruit locker is empty. Drag from the fridge onto the{" "}
+                            <strong className="text-moo-dark">fruit locker</strong> shelf, or use Edit link.
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                )
               ) : (
-                <div className="min-h-0 flex-1 overflow-auto pb-6 pt-2 sm:pt-2.5">
+                <div className={`min-h-0 flex-1 overflow-auto ${iosNativeUi ? "pb-2 pt-1" : "pb-6 pt-2 sm:pt-2.5"}`}>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
                     {tab === "fridge" && !iosNativeUi ? (
                       <div key="__paste_plus__" className="flex min-h-0 h-full min-w-0 flex-col">
@@ -659,11 +682,11 @@ export function AppShell() {
       {pasteError != null && pasteError !== "" ? (
         <div
           className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] ${
-            iosNativeUi ? "bottom-[calc(6.75rem+env(safe-area-inset-bottom))]" : "bottom-4"
+            iosNativeUi ? "bottom-[calc(13.5rem+env(safe-area-inset-bottom))]" : "bottom-4"
           }`}
         >
           <p
-            className="pointer-events-auto max-w-md rounded-2xl border border-red-200/80 bg-red-50/95 px-4 py-2.5 text-center text-xs leading-snug text-red-800 shadow-lg backdrop-blur-sm"
+            className="pointer-events-auto max-w-md rounded-2xl border border-red-200/80 bg-red-50/95 px-4 py-2.5 text-center text-xs leading-snug text-red-800 shadow-lg backdrop-blur-sm dark:border-red-900/50 dark:bg-red-950/90 dark:text-red-100"
             role="alert"
           >
             {pasteError}
@@ -672,8 +695,8 @@ export function AppShell() {
       ) : null}
 
       {iosNativeUi ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2">
-          <div className="pointer-events-auto rounded-full bg-white/90 p-1.5 shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.06] backdrop-blur-sm">
+        <div className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))]">
+          <div className="pointer-events-auto rounded-full border border-white/40 bg-white/35 p-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.14)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.12] dark:shadow-[0_8px_28px_rgba(0,0,0,0.5)]">
             <FridgePastePlusCard variant="floating" onPaste={onQuickPaste} disabled={pasteBusy} />
           </div>
         </div>

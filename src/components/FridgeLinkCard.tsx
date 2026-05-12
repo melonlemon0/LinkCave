@@ -100,12 +100,12 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
         const el = rootRef.current;
         if (el) attachScaledDragGhost(e, el);
       }}
-      className={`relative group h-full min-h-0 rounded-2xl overflow-hidden bg-white shadow-apple hover:shadow-apple-lg border border-black/5 transition-all duration-200 ${
+      className={`relative group h-full min-h-0 rounded-2xl overflow-hidden border border-black/5 bg-white shadow-apple transition-all duration-200 hover:shadow-apple-lg dark:border-white/10 dark:bg-neutral-900 dark:shadow-none dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] ${
         draggable ? "cursor-grab active:cursor-grabbing" : ""
       }`}
     >
       <a href={link.url} target="_blank" rel="noopener noreferrer" draggable={false} className="block">
-        <div className="aspect-video relative bg-gray-100">
+        <div className="relative aspect-video bg-neutral-100 dark:bg-neutral-800">
           {link.pinned ? (
             <div
               className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sky-200/90 bg-gradient-to-b from-sky-50/95 to-cyan-100/90 text-sky-700 shadow-sm"
@@ -134,7 +134,7 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
             </div>
           )}
         </div>
-        <p className="p-3 text-sm font-medium text-moo-dark truncate" title={link.title}>
+        <p className="p-3 text-sm font-medium text-moo-dark truncate dark:text-neutral-100" title={link.title}>
           {link.title}
         </p>
       </a>
@@ -143,10 +143,10 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
           type="button"
           onClick={copyUrl}
           onMouseDown={(e) => e.stopPropagation()}
-          className={`flex items-center justify-center border border-black/[0.08] bg-white/95 shadow-ios-icon backdrop-blur-sm transition-opacity hover:border-black/12 hover:bg-white hover:text-moo-accent ${
+          className={`flex items-center justify-center border border-black/[0.08] bg-white/95 shadow-ios-icon backdrop-blur-sm transition-opacity hover:border-black/12 hover:bg-white hover:text-moo-accent dark:border-white/12 dark:bg-neutral-800/95 dark:hover:bg-neutral-800 dark:hover:text-sky-400 ${
             copied
-              ? "min-h-8 min-w-[4.75rem] rounded-xl px-2 py-1.5 text-emerald-600 opacity-100"
-              : "h-8 w-8 rounded-full text-moo-dark opacity-0 group-hover:opacity-100"
+              ? "min-h-8 min-w-[4.75rem] rounded-xl px-2 py-1.5 text-emerald-600 opacity-100 dark:text-emerald-400"
+              : "h-8 w-8 rounded-full text-moo-dark opacity-0 group-hover:opacity-100 dark:text-neutral-200"
           }`}
           aria-label={copied ? "Copied!" : "Share — copy link to clipboard"}
           title={copied ? "Copied!" : "Share (copy link)"}
@@ -166,7 +166,7 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
               onEdit(link);
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-white/95 text-moo-dark opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:border-black/12 hover:bg-white hover:text-moo-accent group-hover:opacity-100"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-white/95 text-moo-dark opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:border-black/12 hover:bg-white hover:text-moo-accent group-hover:opacity-100 dark:border-white/12 dark:bg-neutral-800/95 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-sky-400"
             aria-label="Edit link"
             title="Edit"
           >
@@ -183,7 +183,7 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
             void onDelete(link);
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-50/95 text-red-700 opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:bg-red-50 group-hover:opacity-100"
+          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-50/95 text-red-700 opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:bg-red-50 group-hover:opacity-100 dark:bg-red-950/80 dark:text-red-300 dark:hover:bg-red-950"
           aria-label="Delete link"
           title="Delete"
         >

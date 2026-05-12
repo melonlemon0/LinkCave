@@ -20,14 +20,33 @@ type Props = {
   twoZoneOnly?: boolean;
 };
 
-function shelfCardClass(shelf: ShelfTab, tab: ShelfTab, isDragOver: boolean): string {
+function shelfCardClass(
+  shelf: ShelfTab,
+  tab: ShelfTab,
+  isDragOver: boolean,
+  opts?: { iosNative?: boolean }
+): string {
+  const ios = opts?.iosNative === true;
   const selected = tab === shelf;
-  /** Keep layout/weight stable while dragging — only the active tab sets muted look; drag target uses a ring. */
-  const dimInactive = selected ? "" : " opacity-[0.82] saturate-[0.92]";
-  const dragRing = isDragOver ? " z-[1] ring-2 ring-moo-accent/55 ring-offset-2 ring-offset-white" : "";
+  const dimInactive = selected ? "" : " opacity-[0.88]";
+  const dragRingIos =
+    " z-[1] ring-2 ring-white/90 ring-offset-2 ring-offset-white dark:ring-offset-black";
+  const dragRingDefault = " z-[1] ring-2 ring-moo-accent/55 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950";
+  const dragRing = isDragOver ? (ios ? dragRingIos : dragRingDefault) : "";
+
+  if (ios && (shelf === "fridge" || shelf === "freezer")) {
+    const base =
+      "flex h-full w-full max-w-full flex-col items-center justify-center rounded-2xl border-0 py-3 shadow-none min-h-[4.1rem] md:min-h-[7rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black text-white";
+    if (shelf === "fridge") {
+      const bg = selected ? "bg-[#30D158]" : "bg-[#1c9c42]";
+      return `${base}${dimInactive} ${bg}${dragRing}`;
+    }
+    const bg = selected ? "bg-[#0A84FF]" : "bg-[#006edc]";
+    return `${base}${dimInactive} ${bg}${dragRing}`;
+  }
 
   const baseCore =
-    `flex h-full w-full max-w-full flex-col items-center justify-center gap-0.5 rounded-2xl border-0 px-0.5 py-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moo-accent/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white md:gap-1.5 md:px-1 md:py-[clamp(0.6rem,2.5dvh,1.45rem)]${dimInactive}`;
+    `flex h-full w-full max-w-full flex-col items-center justify-center gap-0.5 rounded-2xl border-0 px-0.5 py-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moo-accent/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950 md:gap-1.5 md:px-1 md:py-[clamp(0.6rem,2.5dvh,1.45rem)]${dimInactive}`;
 
   const minFridge = "min-h-[4.35rem] md:min-h-[clamp(6rem,24dvh,11.5rem)]";
   const minCold = "min-h-[3.85rem] md:min-h-[clamp(4.75rem,17dvh,8.5rem)]";
@@ -81,21 +100,25 @@ export function FridgeShelves({
   twoZoneOnly = false,
 }: Props) {
   const asideGrid = twoZoneOnly
-    ? "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2 border-b border-black/[0.06] bg-white/90 py-2 backdrop-blur-md md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:border-0 md:bg-transparent md:py-1 md:backdrop-blur-none md:grid-rows-[auto_minmax(0,1.38fr)_minmax(0,1.1fr)]"
-    : "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2 border-b border-black/[0.06] bg-white/90 py-2 backdrop-blur-md md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:border-0 md:bg-transparent md:py-1 md:backdrop-blur-none md:grid-rows-[auto_minmax(0,1.38fr)_minmax(0,0.873fr)_auto_minmax(0,0.873fr)_auto_minmax(0,0.873fr)]";
+    ? "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2.5 px-1 pb-2 pt-[max(2.75rem,env(safe-area-inset-top)+1.75rem)] bg-transparent md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:py-1 md:pt-2 md:grid-rows-[minmax(0,1.1fr)_minmax(0,1.1fr)]"
+    : "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2 border-b border-black/[0.06] bg-white/90 py-2 backdrop-blur-md dark:border-white/[0.08] dark:bg-neutral-950/90 md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:border-0 md:bg-transparent md:py-1 md:backdrop-blur-none md:grid-rows-[auto_minmax(0,1.38fr)_minmax(0,0.873fr)_auto_minmax(0,0.873fr)_auto_minmax(0,0.873fr)]";
+
+  const iosOpt = { iosNative: twoZoneOnly };
 
   return (
     <aside className={asideGrid}>
-      <NextLink
-        href="/settings"
-        draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-        className="col-span-2 flex h-11 w-full shrink-0 flex-col items-center justify-end rounded-2xl border-0 border-transparent bg-transparent pr-0.5 shadow-none hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moo-accent/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white md:col-span-1 md:h-[clamp(2.75rem,7.5dvh,4.75rem)] md:items-center md:justify-center md:border md:border-black/[0.06] md:bg-gradient-to-b md:from-white md:via-white md:to-moo-cream/50 md:pr-0 md:shadow-sm md:hover:border-moo-accent/20 md:hover:shadow-md"
-        aria-label="Settings"
-        title="Settings"
-      >
-        <IconSettings className="h-5 w-5 text-moo-dark/75 md:h-[clamp(1.125rem,3.2dvh,1.375rem)] md:w-[clamp(1.125rem,3.2dvh,1.375rem)]" />
-      </NextLink>
+      {twoZoneOnly ? null : (
+        <NextLink
+          href="/settings"
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          className="col-span-2 flex h-11 w-full shrink-0 flex-col items-center justify-end rounded-2xl border-0 border-transparent bg-transparent pr-0.5 shadow-none hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moo-accent/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white md:col-span-1 md:h-[clamp(2.75rem,7.5dvh,4.75rem)] md:items-center md:justify-center md:border md:border-black/[0.06] md:bg-gradient-to-b md:from-white md:via-white md:to-moo-cream/50 md:pr-0 md:shadow-sm md:hover:border-moo-accent/20 md:hover:shadow-md dark:md:border-white/10 dark:md:from-neutral-900 dark:md:via-neutral-900 dark:md:to-neutral-950"
+          aria-label="Settings"
+          title="Settings"
+        >
+          <IconSettings className="h-5 w-5 text-moo-dark/75 md:h-[clamp(1.125rem,3.2dvh,1.375rem)] md:w-[clamp(1.125rem,3.2dvh,1.375rem)] dark:text-neutral-300" />
+        </NextLink>
+      )}
 
       <button
         type="button"
@@ -109,13 +132,13 @@ export function FridgeShelves({
           if (tab === "fridge") return;
           onDropShelf("fridge", e);
         }}
-        className={shelfCardClass("fridge", tab, dragOver === "fridge")}
+        className={shelfCardClass("fridge", tab, dragOver === "fridge", iosOpt)}
         aria-label={`Fridge, ${fridgeCount} links`}
       >
-        <span className="flex shrink-0 opacity-90" aria-hidden>
-          <IconFridge className="h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5" />
+        <span className="flex shrink-0 opacity-95" aria-hidden>
+          <IconFridge className={`h-[1.2rem] w-[1.2rem] sm:h-5 sm:w-5 ${twoZoneOnly ? "text-white" : ""}`} />
         </span>
-        <Count n={fridgeCount} />
+        {twoZoneOnly ? null : <Count n={fridgeCount} />}
       </button>
 
       <button
@@ -124,13 +147,13 @@ export function FridgeShelves({
         onClick={() => onTab("freezer")}
         onDragOver={(e) => onDragOverShelf("freezer", e)}
         onDrop={(e) => onDropShelf("freezer", e)}
-        className={shelfCardClass("freezer", tab, dragOver === "freezer")}
+        className={shelfCardClass("freezer", tab, dragOver === "freezer", iosOpt)}
         aria-label={`Freezer, ${frozenCount} links`}
       >
-        <span className="flex shrink-0 opacity-85" aria-hidden>
-          <IconSnowflake className="h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5" />
+        <span className="flex shrink-0 opacity-95" aria-hidden>
+          <IconSnowflake className={`h-[1.2rem] w-[1.2rem] sm:h-5 sm:w-5 ${twoZoneOnly ? "text-white" : ""}`} />
         </span>
-        <Count n={frozenCount} />
+        {twoZoneOnly ? null : <Count n={frozenCount} />}
       </button>
 
       {twoZoneOnly ? null : (

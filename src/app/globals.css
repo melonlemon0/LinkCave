@@ -15,6 +15,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html.native-ios-shell {
+  color-scheme: light dark;
+}
+
+html.native-ios-shell body {
+  @apply bg-white dark:bg-black dark:text-neutral-100;
+}
+
 /* Drag preview */
 .link-card-dragging {
   opacity: 0.9;
