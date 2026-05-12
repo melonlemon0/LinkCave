@@ -2,17 +2,17 @@
 
 import type { FridgeLink, ShelfTab } from "@/types/linkfridge";
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { IconLinkSliders, IconShare, IconSnowflake, IconTrash } from "./icons";
+import { IconShare, IconSnowflake, IconTrash } from "./icons";
 
-const DRAG_GHOST_SCALE = 0.56;
+const DRAG_GHOST_SCALE = 0.42;
 
 function attachScaledDragGhost(e: DragEvent<HTMLDivElement>, sourceEl: HTMLDivElement): void {
   const srcW = sourceEl.offsetWidth;
   const srcH = sourceEl.offsetHeight;
   if (srcW < 8 || srcH < 8) return;
 
-  const w = Math.max(80, Math.round(srcW * DRAG_GHOST_SCALE));
-  const h = Math.max(60, Math.round(srcH * DRAG_GHOST_SCALE));
+  const w = Math.max(72, Math.round(srcW * DRAG_GHOST_SCALE));
+  const h = Math.max(52, Math.round(srcH * DRAG_GHOST_SCALE));
 
   const wrapper = document.createElement("div");
   wrapper.setAttribute("data-linkfridge-drag-ghost", "");
@@ -25,9 +25,9 @@ function attachScaledDragGhost(e: DragEvent<HTMLDivElement>, sourceEl: HTMLDivEl
     `width:${w}px`,
     `height:${h}px`,
     "overflow:hidden",
-    "border-radius:16px",
-    "box-shadow:0 16px 48px rgba(0,0,0,0.22),0 4px 12px rgba(0,0,0,0.08)",
-    "opacity:0.98",
+    "border-radius:14px",
+    "box-shadow:0 12px 36px rgba(0,0,0,0.2),0 2px 8px rgba(0,0,0,0.06)",
+    "opacity:0.97",
   ].join(";");
 
   const inner = sourceEl.cloneNode(true) as HTMLDivElement;
@@ -90,6 +90,8 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
     };
   }, []);
 
+  const thumbOpenLabel = `Open: ${link.title}`;
+
   return (
     <div
       ref={rootRef}
@@ -107,38 +109,26 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
         draggable ? "cursor-grab touch-manipulation active:cursor-grabbing" : ""
       } ${
         dragging
-          ? "z-20 scale-[0.97] opacity-[0.42] shadow-lg ring-2 ring-moo-accent/35 dark:ring-sky-400/40"
+          ? "z-20 scale-[0.88] opacity-[0.35] shadow-md ring-1 ring-moo-accent/25 dark:ring-sky-400/30"
           : ""
       }`}
     >
-      <a href={link.url} target="_blank" rel="noopener noreferrer" draggable={false} className="block">
-        <div className="relative aspect-video bg-neutral-100 dark:bg-neutral-800">
-          {draggable ? (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center gap-1 opacity-80"
-              aria-hidden
-            >
-              <span className="h-1 w-1 rounded-full bg-black/35 dark:bg-white/45" />
-              <span className="h-1 w-1 rounded-full bg-black/35 dark:bg-white/45" />
-              <span className="h-1 w-1 rounded-full bg-black/35 dark:bg-white/45" />
-            </div>
-          ) : null}
-          {link.pinned ? (
-            <div
-              className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sky-200/90 bg-gradient-to-b from-sky-50/95 to-cyan-100/90 text-sky-700 shadow-sm"
-              aria-label="Pinned link"
-              title="Pinned"
-            >
-              <IconSnowflake className="h-3.5 w-3.5" />
-            </div>
-          ) : null}
+      <div className="relative aspect-video bg-neutral-100 dark:bg-neutral-800">
+        <a
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          draggable={false}
+          className="absolute inset-0 z-0 block overflow-hidden"
+          aria-label={thumbOpenLabel}
+        >
           {link.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- arbitrary OG URLs from metadata API
             <img
               src={link.thumbnailUrl}
               alt=""
               draggable={false}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="h-full w-full object-cover"
               loading="lazy"
               decoding="async"
               onError={(e) => {
@@ -146,16 +136,50 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
               }}
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-4xl text-gray-300">
-              🔗
-            </div>
+            <div className="flex h-full w-full items-center justify-center text-4xl text-gray-300">🔗</div>
           )}
-        </div>
+        </a>
+        {link.pinned ? (
+          <div
+            className="pointer-events-none absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sky-200/90 bg-gradient-to-b from-sky-50/95 to-cyan-100/90 text-sky-700 shadow-sm"
+            aria-label="Pinned link"
+            title="Pinned"
+          >
+            <IconSnowflake className="h-3.5 w-3.5" />
+          </div>
+        ) : null}
+        {onEdit ? (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit(link);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="pointer-events-auto flex h-9 w-9 items-center justify-center gap-[5px] rounded-full border border-white/35 bg-black/40 text-white shadow-md backdrop-blur-[2px] transition hover:bg-black/55 active:scale-95 dark:border-white/25 dark:bg-black/50 dark:hover:bg-black/65"
+              aria-label="Edit link"
+              title="Edit"
+            >
+              <span className="h-1 w-1 rounded-full bg-white shadow-sm" />
+              <span className="h-1 w-1 rounded-full bg-white shadow-sm" />
+            </button>
+          </div>
+        ) : null}
+      </div>
+      <a
+        href={link.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        draggable={false}
+        className="block border-t border-black/[0.04] dark:border-white/[0.06]"
+      >
         <p className="p-3 text-sm font-medium text-moo-dark truncate dark:text-neutral-100" title={link.title}>
           {link.title}
         </p>
       </a>
-      <div className="absolute left-2 top-2 z-10 flex items-start gap-1">
+      <div className="absolute left-2 top-2 z-30 flex items-start gap-1">
         <button
           type="button"
           onClick={copyUrl}
@@ -174,22 +198,6 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
             <IconShare className="h-[18px] w-[18px] shrink-0" />
           )}
         </button>
-        {onEdit ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onEdit(link);
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/[0.08] bg-white/95 text-moo-dark opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:border-black/12 hover:bg-white hover:text-moo-accent group-hover:opacity-100 dark:border-white/12 dark:bg-neutral-800/95 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:hover:text-sky-400"
-            aria-label="Edit link"
-            title="Edit"
-          >
-            <IconLinkSliders className="shrink-0" />
-          </button>
-        ) : null}
       </div>
       {onDelete ? (
         <button
@@ -200,7 +208,7 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
             void onDelete(link);
           }}
           onMouseDown={(e) => e.stopPropagation()}
-          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-50/95 text-red-700 opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:bg-red-50 group-hover:opacity-100 dark:bg-red-950/80 dark:text-red-300 dark:hover:bg-red-950"
+          className="absolute right-2 top-2 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-red-50/95 text-red-700 opacity-0 shadow-ios-icon backdrop-blur-sm transition-opacity hover:bg-red-50 group-hover:opacity-100 dark:bg-red-950/80 dark:text-red-300 dark:hover:bg-red-950"
           aria-label="Delete link"
           title="Delete"
         >

@@ -102,7 +102,7 @@ export function FridgeShelves({
   twoZoneOnly = false,
 }: Props) {
   const asideGrid = twoZoneOnly
-    ? "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2.5 px-1 pb-2 pt-[max(2.35rem,env(safe-area-inset-top)+1.5rem)] bg-transparent md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:py-1 md:pt-2 md:grid-rows-[minmax(0,1.1fr)_minmax(0,1.1fr)]"
+    ? "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2.5 pl-1 pr-[3.35rem] pb-2 pt-[max(1.55rem,env(safe-area-inset-top)+0.32rem)] bg-transparent md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:px-1 md:py-1 md:pt-2 md:grid-rows-[minmax(0,1.1fr)_minmax(0,1.1fr)]"
     : "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2 border-b border-black/[0.06] bg-white/90 py-2 backdrop-blur-md dark:border-white/[0.08] dark:bg-neutral-950/90 md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:border-0 md:bg-transparent md:py-1 md:backdrop-blur-none md:grid-rows-[auto_minmax(0,1.38fr)_minmax(0,0.873fr)_auto_minmax(0,0.873fr)_auto_minmax(0,0.873fr)]";
 
   const iosOpt = { iosNative: twoZoneOnly };

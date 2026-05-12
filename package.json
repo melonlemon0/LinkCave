@@ -19,6 +19,7 @@
     "@capacitor/cli": "^6.2.1",
     "@capacitor/clipboard": "^6.0.3",
     "@capacitor/core": "^6.2.1",
+    "@capacitor/haptics": "^6.0.3",
     "@capacitor/ios": "^6.2.1",
     "firebase": "^11.10.0",
     "next": "14.2.18",

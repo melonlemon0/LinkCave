@@ -23,6 +23,7 @@ import {
 } from "@/lib/local/demo-store";
 import { Clipboard } from "@capacitor/clipboard";
 import { Capacitor } from "@capacitor/core";
+import { hapticPasteTap } from "@/lib/native/haptics";
 import { fetchLinkPreview } from "@/lib/linkfridge/fetch-link-preview";
 import { normalizeLinkUrl } from "@/lib/linkfridge/url-helpers";
 import { countDueReminders, getPendingReminderOffsets } from "@/lib/linkfridge/reminders";
@@ -435,6 +436,7 @@ export function AppShell() {
   );
 
   const onQuickPaste = useCallback(async () => {
+    hapticPasteTap();
     setPasteError(null);
     setPasteBusy(true);
     try {
@@ -707,7 +709,7 @@ export function AppShell() {
       {iosNativeUi && iosPortalEl
         ? createPortal(
             <div className="pointer-events-none fixed inset-x-0 bottom-[calc(6.35rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
-              <div className="pointer-events-auto rounded-full border border-white/40 bg-white/35 p-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.14)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.12] dark:shadow-[0_8px_28px_rgba(0,0,0,0.5)]">
+              <div className="pointer-events-auto">
                 <FridgePastePlusCard variant="floating" onPaste={onQuickPaste} disabled={pasteBusy} />
               </div>
             </div>,
