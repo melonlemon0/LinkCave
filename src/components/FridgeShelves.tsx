@@ -29,24 +29,26 @@ function shelfCardClass(
   const ios = opts?.iosNative === true;
   const selected = tab === shelf;
   const dimInactive = selected ? "" : " opacity-[0.88]";
-  const dragRingIos =
-    " z-[1] ring-2 ring-white/90 ring-offset-2 ring-offset-white dark:ring-offset-black";
-  const dragRingDefault = " z-[1] ring-2 ring-moo-accent/55 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950";
-  const dragRing = isDragOver ? (ios ? dragRingIos : dragRingDefault) : "";
+  const dragRingIos = isDragOver
+    ? " z-[2] scale-[1.04] ring-2 ring-white/95 ring-offset-2 ring-offset-white shadow-xl shadow-black/25 dark:ring-offset-black dark:shadow-black/40"
+    : "";
+  const dragRingDefault = isDragOver
+    ? " z-[1] scale-[1.02] ring-2 ring-moo-accent/55 ring-offset-2 ring-offset-white shadow-md dark:ring-offset-neutral-950"
+    : "";
 
   if (ios && (shelf === "fridge" || shelf === "freezer")) {
     const base =
-      "flex h-full w-full max-w-full flex-col items-center justify-center rounded-2xl border-0 py-3 shadow-none min-h-[4.1rem] md:min-h-[7rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black text-white";
+      "flex h-full w-full max-w-full flex-col items-center justify-center rounded-2xl border-0 py-3.5 shadow-none min-h-[4.95rem] md:min-h-[8rem] transition-[transform,box-shadow,opacity,filter] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black text-white";
     if (shelf === "fridge") {
       const bg = selected ? "bg-[#30D158]" : "bg-[#1c9c42]";
-      return `${base}${dimInactive} ${bg}${dragRing}`;
+      return `${base}${dimInactive} ${bg}${dragRingIos}`;
     }
     const bg = selected ? "bg-[#0A84FF]" : "bg-[#006edc]";
-    return `${base}${dimInactive} ${bg}${dragRing}`;
+    return `${base}${dimInactive} ${bg}${dragRingIos}`;
   }
 
   const baseCore =
-    `flex h-full w-full max-w-full flex-col items-center justify-center gap-0.5 rounded-2xl border-0 px-0.5 py-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moo-accent/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950 md:gap-1.5 md:px-1 md:py-[clamp(0.6rem,2.5dvh,1.45rem)]${dimInactive}`;
+    `flex h-full w-full max-w-full flex-col items-center justify-center gap-0.5 rounded-2xl border-0 px-0.5 py-2 shadow-sm transition-[transform,box-shadow,opacity] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moo-accent/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-950 md:gap-1.5 md:px-1 md:py-[clamp(0.6rem,2.5dvh,1.45rem)]${dimInactive}`;
 
   const minFridge = "min-h-[4.35rem] md:min-h-[clamp(6rem,24dvh,11.5rem)]";
   const minCold = "min-h-[3.85rem] md:min-h-[clamp(4.75rem,17dvh,8.5rem)]";
@@ -56,7 +58,7 @@ function shelfCardClass(
     const bg = selected
       ? "bg-gradient-to-br from-sky-300/95 via-cyan-200 to-emerald-200/95 text-moo-dark shadow-md"
       : "bg-gradient-to-br from-sky-200 via-cyan-100 to-emerald-100 text-moo-dark shadow-sm hover:shadow-md";
-    return `${base} ${bg}${dragRing}`;
+    return `${base} ${bg}${dragRingDefault}`;
   }
 
   const base = `${baseCore} ${minCold}`;
@@ -65,20 +67,20 @@ function shelfCardClass(
     const bg = selected
       ? "bg-sky-300/90 text-sky-950 shadow-md"
       : "bg-sky-100/95 text-sky-900 shadow-sm hover:bg-sky-200/90 hover:shadow-md";
-    return `${base} ${bg}${dragRing}`;
+    return `${base} ${bg}${dragRingDefault}`;
   }
 
   if (shelf === "meat") {
     const bg = selected
       ? "bg-gradient-to-br from-rose-300/95 via-rose-200/90 to-amber-100/95 text-rose-950 shadow-md"
       : "bg-gradient-to-br from-rose-100 via-rose-50 to-amber-50 text-rose-950 shadow-sm hover:shadow-md";
-    return `${base} ${bg}${dragRing}`;
+    return `${base} ${bg}${dragRingDefault}`;
   }
 
   const bg = selected
     ? "bg-gradient-to-br from-lime-300/90 via-emerald-200/90 to-yellow-100 text-lime-950 shadow-md"
     : "bg-gradient-to-br from-lime-100 via-emerald-50 to-yellow-50 text-lime-950 shadow-sm hover:shadow-md";
-  return `${base} ${bg}${dragRing}`;
+  return `${base} ${bg}${dragRingDefault}`;
 }
 
 function Count({ n }: { n: number }) {
@@ -100,7 +102,7 @@ export function FridgeShelves({
   twoZoneOnly = false,
 }: Props) {
   const asideGrid = twoZoneOnly
-    ? "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2.5 px-1 pb-2 pt-[max(2.75rem,env(safe-area-inset-top)+1.75rem)] bg-transparent md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:py-1 md:pt-2 md:grid-rows-[minmax(0,1.1fr)_minmax(0,1.1fr)]"
+    ? "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2.5 px-1 pb-2 pt-[max(2.35rem,env(safe-area-inset-top)+1.5rem)] bg-transparent md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:py-1 md:pt-2 md:grid-rows-[minmax(0,1.1fr)_minmax(0,1.1fr)]"
     : "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2 border-b border-black/[0.06] bg-white/90 py-2 backdrop-blur-md dark:border-white/[0.08] dark:bg-neutral-950/90 md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:border-0 md:bg-transparent md:py-1 md:backdrop-blur-none md:grid-rows-[auto_minmax(0,1.38fr)_minmax(0,0.873fr)_auto_minmax(0,0.873fr)_auto_minmax(0,0.873fr)]";
 
   const iosOpt = { iosNative: twoZoneOnly };

@@ -34,6 +34,7 @@ import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import type { DragEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AppLoadingScreen } from "./AppLoadingScreen";
 import { IconSettings } from "./icons";
 import { FridgeLinkCard } from "./FridgeLinkCard";
@@ -85,12 +86,21 @@ export function AppShell() {
   const [demoHydrated, setDemoHydrated] = useState(false);
   /** Capacitor iOS only — fridge + merged freezer + floating paste (avoids hydration mismatch). */
   const [iosNativeUi, setIosNativeUi] = useState(false);
+  const [iosPortalEl, setIosPortalEl] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
     setDemoMode(isDemoSignedIn());
     setShellReady(true);
     setIosNativeUi(Capacitor.getPlatform() === "ios");
   }, []);
+
+  useEffect(() => {
+    if (!iosNativeUi) {
+      setIosPortalEl(null);
+      return;
+    }
+    setIosPortalEl(document.body);
+  }, [iosNativeUi]);
 
   const [tab, setTab] = useState<ShelfTab>("fridge");
   const [dragOver, setDragOver] = useState<ShelfTab | null>(null);
@@ -510,7 +520,7 @@ export function AppShell() {
       <main
         className={`mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col px-2 sm:px-3 md:px-4 ${
           iosNativeUi
-            ? "pb-[calc(8.5rem+env(safe-area-inset-bottom))] pt-0 md:pb-10 md:pt-2"
+            ? "pb-[calc(7.75rem+env(safe-area-inset-bottom))] pt-0 md:pb-10 md:pt-2"
             : "pb-8 pt-2 md:pb-10"
         }`}
       >
@@ -565,18 +575,18 @@ export function AppShell() {
             ) : null}
 
             <div
-              className={`flex min-h-0 flex-1 flex-col transition ${
+              className={`flex min-h-0 flex-1 flex-col transition-[background-color,box-shadow] duration-200 ease-out ${
                 iosNativeUi
-                  ? ""
+                  ? `rounded-2xl ${
+                      tab !== "fridge" && dragOver === "fridge"
+                        ? "bg-emerald-500/[0.07] ring-2 ring-emerald-400/35 ring-inset dark:bg-emerald-400/[0.08] dark:ring-emerald-300/25"
+                        : ""
+                    }`
                   : `rounded-2xl ${
                       tab !== "fridge" && dragOver === "fridge"
                         ? "ring-2 ring-moo-accent/45 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950"
                         : ""
                     }`
-              } ${
-                iosNativeUi && tab !== "fridge" && dragOver === "fridge"
-                  ? "ring-2 ring-white/30 ring-offset-2 ring-offset-transparent dark:ring-white/25"
-                  : ""
               }`}
               onDragOver={(e) => {
                 if (tab === "fridge") return;
@@ -682,7 +692,7 @@ export function AppShell() {
       {pasteError != null && pasteError !== "" ? (
         <div
           className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] ${
-            iosNativeUi ? "bottom-[calc(13.5rem+env(safe-area-inset-bottom))]" : "bottom-4"
+            iosNativeUi ? "bottom-[calc(11.25rem+env(safe-area-inset-bottom))]" : "bottom-4"
           }`}
         >
           <p
@@ -694,13 +704,16 @@ export function AppShell() {
         </div>
       ) : null}
 
-      {iosNativeUi ? (
-        <div className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4 bottom-[calc(7.25rem+env(safe-area-inset-bottom))]">
-          <div className="pointer-events-auto rounded-full border border-white/40 bg-white/35 p-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.14)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.12] dark:shadow-[0_8px_28px_rgba(0,0,0,0.5)]">
-            <FridgePastePlusCard variant="floating" onPaste={onQuickPaste} disabled={pasteBusy} />
-          </div>
-        </div>
-      ) : null}
+      {iosNativeUi && iosPortalEl
+        ? createPortal(
+            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(6.35rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
+              <div className="pointer-events-auto rounded-full border border-white/40 bg-white/35 p-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.14)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.12] dark:shadow-[0_8px_28px_rgba(0,0,0,0.5)]">
+                <FridgePastePlusCard variant="floating" onPaste={onQuickPaste} disabled={pasteBusy} />
+              </div>
+            </div>,
+            iosPortalEl
+          )
+        : null}
     </div>
   );
 }

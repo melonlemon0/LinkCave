@@ -4,15 +4,15 @@ import type { FridgeLink, ShelfTab } from "@/types/linkfridge";
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import { IconLinkSliders, IconShare, IconSnowflake, IconTrash } from "./icons";
 
-const DRAG_GHOST_SCALE = 0.5;
+const DRAG_GHOST_SCALE = 0.56;
 
 function attachScaledDragGhost(e: DragEvent<HTMLDivElement>, sourceEl: HTMLDivElement): void {
   const srcW = sourceEl.offsetWidth;
   const srcH = sourceEl.offsetHeight;
   if (srcW < 8 || srcH < 8) return;
 
-  const w = Math.max(72, Math.round(srcW * DRAG_GHOST_SCALE));
-  const h = Math.max(56, Math.round(srcH * DRAG_GHOST_SCALE));
+  const w = Math.max(80, Math.round(srcW * DRAG_GHOST_SCALE));
+  const h = Math.max(60, Math.round(srcH * DRAG_GHOST_SCALE));
 
   const wrapper = document.createElement("div");
   wrapper.setAttribute("data-linkfridge-drag-ghost", "");
@@ -25,9 +25,9 @@ function attachScaledDragGhost(e: DragEvent<HTMLDivElement>, sourceEl: HTMLDivEl
     `width:${w}px`,
     `height:${h}px`,
     "overflow:hidden",
-    "border-radius:14px",
-    "box-shadow:0 14px 32px rgba(0,0,0,0.2)",
-    "opacity:0.96",
+    "border-radius:16px",
+    "box-shadow:0 16px 48px rgba(0,0,0,0.22),0 4px 12px rgba(0,0,0,0.08)",
+    "opacity:0.98",
   ].join(";");
 
   const inner = sourceEl.cloneNode(true) as HTMLDivElement;
@@ -64,6 +64,7 @@ type Props = {
 export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Props) {
   const draggable = dragSource != null;
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -99,13 +100,29 @@ export function FridgeLinkCard({ link, onEdit, onDelete, dragSource = null }: Pr
         e.dataTransfer.effectAllowed = "move";
         const el = rootRef.current;
         if (el) attachScaledDragGhost(e, el);
+        setDragging(true);
       }}
-      className={`relative group h-full min-h-0 rounded-2xl overflow-hidden border border-black/5 bg-white shadow-apple transition-all duration-200 hover:shadow-apple-lg dark:border-white/10 dark:bg-neutral-900 dark:shadow-none dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] ${
-        draggable ? "cursor-grab active:cursor-grabbing" : ""
+      onDragEnd={() => setDragging(false)}
+      className={`relative group h-full min-h-0 rounded-2xl overflow-hidden border border-black/5 bg-white shadow-apple transition-[opacity,transform,box-shadow] duration-200 ease-out hover:shadow-apple-lg dark:border-white/10 dark:bg-neutral-900 dark:shadow-none dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] ${
+        draggable ? "cursor-grab touch-manipulation active:cursor-grabbing" : ""
+      } ${
+        dragging
+          ? "z-20 scale-[0.97] opacity-[0.42] shadow-lg ring-2 ring-moo-accent/35 dark:ring-sky-400/40"
+          : ""
       }`}
     >
       <a href={link.url} target="_blank" rel="noopener noreferrer" draggable={false} className="block">
         <div className="relative aspect-video bg-neutral-100 dark:bg-neutral-800">
+          {draggable ? (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center gap-1 opacity-80"
+              aria-hidden
+            >
+              <span className="h-1 w-1 rounded-full bg-black/35 dark:bg-white/45" />
+              <span className="h-1 w-1 rounded-full bg-black/35 dark:bg-white/45" />
+              <span className="h-1 w-1 rounded-full bg-black/35 dark:bg-white/45" />
+            </div>
+          ) : null}
           {link.pinned ? (
             <div
               className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sky-200/90 bg-gradient-to-b from-sky-50/95 to-cyan-100/90 text-sky-700 shadow-sm"
