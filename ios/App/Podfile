@@ -12,6 +12,7 @@ def capacitor_pods
   pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
+  pod 'CapacitorClipboard', :path => '../../node_modules/@capacitor/clipboard'
 end
 
 target 'App' do
@@ -21,4 +22,11 @@ end
 
 post_install do |installer|
   assertDeploymentTarget(installer)
+  # Xcode 16+ treats quoted includes inside framework umbrella headers as errors for
+  # CapacitorCordova (CDV*.h). Disable until upstream ships angle-bracket imports.
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+    end
+  end
 end

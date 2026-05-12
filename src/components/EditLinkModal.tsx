@@ -19,6 +19,8 @@ type Props = {
   onRelocateFrozen?: (zone: FrozenZone) => Promise<void>;
   /** Pin / unpin on the current shelf (fridge or freezer). */
   onTogglePin?: () => Promise<void>;
+  /** Native iOS: only freezer as cold storage in the UI (no meat/fruit pickers). */
+  twoColdShelvesOnly?: boolean;
 };
 
 /** Match `FridgeShelves` shelf card backgrounds (default / non-selected). */
@@ -42,6 +44,7 @@ export function EditLinkModal({
   activeFrozenZone,
   onRelocateFrozen,
   onTogglePin,
+  twoColdShelvesOnly = false,
 }: Props) {
   const [title, setTitle] = useState(link.title);
   const [url, setUrl] = useState(link.url);
@@ -226,42 +229,58 @@ export function EditLinkModal({
 
           {onFreezeTo ? (
             <div className="mb-5">
-              <p className="mb-2 text-xs font-medium text-moo-brown/85">Move to a cold shelf</p>
-              <div className="flex gap-1.5 sm:gap-2">
+              <p className="mb-2 text-xs font-medium text-moo-brown/85">
+                {twoColdShelvesOnly ? "Move to freezer" : "Move to a cold shelf"}
+              </p>
+              {twoColdShelvesOnly ? (
                 <button
                   type="button"
                   onClick={() => void handleFreezeTo("freezer")}
                   disabled={busy}
-                  className={`${zonePickBtn} ${bgFreezer}`}
+                  className={`${zonePickBtn} ${bgFreezer} w-full max-w-none sm:min-h-[3.5rem]`}
                   title="Freezer"
                   aria-label="Move to freezer"
                 >
                   <IconSnowflake className="h-5 w-5 shrink-0 opacity-90 sm:h-6 sm:w-6" aria-hidden />
                   <span>Freezer</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void handleFreezeTo("meat")}
-                  disabled={busy}
-                  className={`${zonePickBtn} ${bgMeat}`}
-                  title="Meat locker"
-                  aria-label="Move to meat locker"
-                >
-                  <IconMeatLocker className="h-5 w-5 shrink-0 opacity-90 sm:h-6 sm:w-6" aria-hidden />
-                  <span>Meat</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleFreezeTo("fruit")}
-                  disabled={busy}
-                  className={`${zonePickBtn} ${bgFruit}`}
-                  title="Fruit locker"
-                  aria-label="Move to fruit locker"
-                >
-                  <IconFruitLocker className="h-5 w-5 shrink-0 opacity-90 sm:h-6 sm:w-6" aria-hidden />
-                  <span>Fruit</span>
-                </button>
-              </div>
+              ) : (
+                <div className="flex gap-1.5 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleFreezeTo("freezer")}
+                    disabled={busy}
+                    className={`${zonePickBtn} ${bgFreezer}`}
+                    title="Freezer"
+                    aria-label="Move to freezer"
+                  >
+                    <IconSnowflake className="h-5 w-5 shrink-0 opacity-90 sm:h-6 sm:w-6" aria-hidden />
+                    <span>Freezer</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleFreezeTo("meat")}
+                    disabled={busy}
+                    className={`${zonePickBtn} ${bgMeat}`}
+                    title="Meat locker"
+                    aria-label="Move to meat locker"
+                  >
+                    <IconMeatLocker className="h-5 w-5 shrink-0 opacity-90 sm:h-6 sm:w-6" aria-hidden />
+                    <span>Meat</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleFreezeTo("fruit")}
+                    disabled={busy}
+                    className={`${zonePickBtn} ${bgFruit}`}
+                    title="Fruit locker"
+                    aria-label="Move to fruit locker"
+                  >
+                    <IconFruitLocker className="h-5 w-5 shrink-0 opacity-90 sm:h-6 sm:w-6" aria-hidden />
+                    <span>Fruit</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : null}
 
@@ -283,7 +302,7 @@ export function EditLinkModal({
             </div>
           ) : null}
 
-          {onRelocateFrozen && activeFrozenZone != null ? (
+          {onRelocateFrozen && activeFrozenZone != null && !twoColdShelvesOnly ? (
             <div className="mb-5">
               <p className="mb-2 text-xs font-medium text-moo-brown/85">Switch cold shelf</p>
               <div className="flex gap-1.5 sm:gap-2">

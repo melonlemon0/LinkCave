@@ -21,6 +21,8 @@ import {
   newDemoLink,
   saveDemoPayload,
 } from "@/lib/local/demo-store";
+import { Clipboard } from "@capacitor/clipboard";
+import { Capacitor } from "@capacitor/core";
 import { fetchLinkPreview } from "@/lib/linkfridge/fetch-link-preview";
 import { normalizeLinkUrl } from "@/lib/linkfridge/url-helpers";
 import { countDueReminders, getPendingReminderOffsets } from "@/lib/linkfridge/reminders";
@@ -47,6 +49,17 @@ function isColdShelfTab(x: unknown): x is Exclude<ShelfTab, "fridge"> {
   return x === "freezer" || x === "meat" || x === "fruit";
 }
 
+/** WebView clipboard API often needs an extra “Paste” step on iOS; native bridge reads in one tap. */
+async function readClipboardText(): Promise<string> {
+  if (Capacitor.isNativePlatform()) {
+    const res = await Clipboard.read();
+    const v = res.value;
+    if (typeof v === "string" && v.trim()) return v;
+    return "";
+  }
+  return navigator.clipboard.readText();
+}
+
 function parseDragPayload(e: DragEvent<Element>): { linkId: string; from: ShelfTab } | null {
   try {
     const raw = e.dataTransfer.getData("application/json");
@@ -68,14 +81,22 @@ export function AppShell() {
   const [demoMode, setDemoMode] = useState(false);
   const [shellReady, setShellReady] = useState(false);
   const [demoHydrated, setDemoHydrated] = useState(false);
+  /** Capacitor iOS only — fridge + merged freezer + floating paste (avoids hydration mismatch). */
+  const [iosNativeUi, setIosNativeUi] = useState(false);
 
   useLayoutEffect(() => {
     setDemoMode(isDemoSignedIn());
     setShellReady(true);
+    setIosNativeUi(Capacitor.getPlatform() === "ios");
   }, []);
 
   const [tab, setTab] = useState<ShelfTab>("fridge");
   const [dragOver, setDragOver] = useState<ShelfTab | null>(null);
+
+  useEffect(() => {
+    if (!iosNativeUi) return;
+    if (tab === "meat" || tab === "fruit") setTab("freezer");
+  }, [iosNativeUi, tab]);
   const [pasteBusy, setPasteBusy] = useState(false);
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [activeLinks, setActiveLinks] = useState<FridgeLink[]>([]);
@@ -146,8 +167,9 @@ export function AppShell() {
 
   const gridLinks = useMemo(() => {
     if (tab === "fridge") return activeLinks;
+    if (iosNativeUi && tab === "freezer") return sortFrozenShelfLinks(frozenLinks);
     return sortFrozenShelfLinks(frozenLinks.filter((l) => linkFrozenZone(l) === tab));
-  }, [tab, activeLinks, frozenLinks]);
+  }, [tab, activeLinks, frozenLinks, iosNativeUi]);
 
   const freezerCount = useMemo(
     () => frozenLinks.filter((l) => linkFrozenZone(l) === "freezer").length,
@@ -162,10 +184,13 @@ export function AppShell() {
     [frozenLinks]
   );
 
-  const displayRows = useMemo(
-    () => gridLinks.map((link) => ({ link, shelf: tab })),
-    [gridLinks, tab]
-  );
+  const displayRows = useMemo(() => {
+    if (tab === "fridge") return gridLinks.map((link) => ({ link, shelf: "fridge" as const }));
+    if (iosNativeUi && tab === "freezer") {
+      return gridLinks.map((link) => ({ link, shelf: linkFrozenZone(link) as ShelfTab }));
+    }
+    return gridLinks.map((link) => ({ link, shelf: tab }));
+  }, [gridLinks, tab, iosNativeUi]);
 
   useEffect(() => {
     if (!settings.notificationsEnabled) return;
@@ -403,7 +428,7 @@ export function AppShell() {
     try {
       let text = "";
       try {
-        text = await navigator.clipboard.readText();
+        text = await readClipboardText();
       } catch {
         setPasteError("Clipboard unavailable — allow permission in the browser, then try again.");
         return;
@@ -463,18 +488,25 @@ export function AppShell() {
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-white">
-      <main className="mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col px-2 pb-8 pt-2 sm:px-3 md:px-4 md:pb-10">
+      <main
+        className={`mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col px-2 pt-2 sm:px-3 md:px-4 ${
+          iosNativeUi
+            ? "pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-10"
+            : "pb-8 md:pb-10"
+        }`}
+      >
         <div className="flex min-h-0 flex-1 flex-col items-stretch gap-2 sm:gap-3 md:flex-row md:gap-4">
           <FridgeShelves
             tab={tab}
             onTab={setTab}
             fridgeCount={activeLinks.length}
-            frozenCount={freezerCount}
+            frozenCount={iosNativeUi ? frozenLinks.length : freezerCount}
             meatCount={meatCount}
             fruitCount={fruitCount}
             dragOver={dragOver}
             onDragOverShelf={onDragOverShelf}
             onDropShelf={onDropShelf}
+            twoZoneOnly={iosNativeUi}
           />
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -527,12 +559,24 @@ export function AppShell() {
               {gridLinks.length === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-6 rounded-2xl border border-dashed border-black/10 bg-white/50 p-6 text-center text-moo-brown sm:p-8">
                   {tab === "fridge" ? (
-                    <div className="h-48 w-full max-w-[12rem] shrink-0 sm:h-52">
-                      <FridgePastePlusCard onPaste={onQuickPaste} disabled={pasteBusy} />
-                    </div>
+                    iosNativeUi ? (
+                      <p className="max-w-sm text-sm leading-relaxed">
+                        Fridge is empty. Tap the <strong className="text-moo-dark">paste</strong> button below to add
+                        a link from your clipboard.
+                      </p>
+                    ) : (
+                      <div className="h-48 w-full max-w-[12rem] shrink-0 sm:h-52">
+                        <FridgePastePlusCard onPaste={onQuickPaste} disabled={pasteBusy} />
+                      </div>
+                    )
                   ) : (
                     <p className="max-w-md text-sm leading-relaxed">
-                      {tab === "freezer" ? (
+                      {iosNativeUi ? (
+                        <>
+                          Nothing in the freezer yet. Drag from the fridge onto the{" "}
+                          <strong className="text-moo-dark">snowflake</strong> shelf, or freeze from Edit link.
+                        </>
+                      ) : tab === "freezer" ? (
                         <>
                           Nothing in the freezer. Drag from the fridge onto the{" "}
                           <strong className="text-moo-dark">snowflake</strong> shelf, or use Edit link to pick a cold
@@ -555,7 +599,7 @@ export function AppShell() {
               ) : (
                 <div className="min-h-0 flex-1 overflow-auto pb-6 pt-2 sm:pt-2.5">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
-                    {tab === "fridge" ? (
+                    {tab === "fridge" && !iosNativeUi ? (
                       <div key="__paste_plus__" className="flex min-h-0 h-full min-w-0 flex-col">
                         <FridgePastePlusCard onPaste={onQuickPaste} disabled={pasteBusy} />
                       </div>
@@ -608,17 +652,30 @@ export function AppShell() {
                 }
               : undefined
           }
+          twoColdShelvesOnly={iosNativeUi}
         />
       )}
 
       {pasteError != null && pasteError !== "" ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)]">
+        <div
+          className={`pointer-events-none fixed inset-x-0 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] ${
+            iosNativeUi ? "bottom-[calc(6.75rem+env(safe-area-inset-bottom))]" : "bottom-4"
+          }`}
+        >
           <p
             className="pointer-events-auto max-w-md rounded-2xl border border-red-200/80 bg-red-50/95 px-4 py-2.5 text-center text-xs leading-snug text-red-800 shadow-lg backdrop-blur-sm"
             role="alert"
           >
             {pasteError}
           </p>
+        </div>
+      ) : null}
+
+      {iosNativeUi ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2">
+          <div className="pointer-events-auto rounded-full bg-white/90 p-1.5 shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.06] backdrop-blur-sm">
+            <FridgePastePlusCard variant="floating" onPaste={onQuickPaste} disabled={pasteBusy} />
+          </div>
         </div>
       ) : null}
     </div>

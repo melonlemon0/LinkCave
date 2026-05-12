@@ -9,13 +9,15 @@ type Props = {
   tab: ShelfTab;
   onTab: (t: ShelfTab) => void;
   fridgeCount: number;
-  /** Main freezer column */
+  /** Main freezer column, or all frozen links when `twoZoneOnly` */
   frozenCount: number;
   meatCount: number;
   fruitCount: number;
   dragOver: ShelfTab | null;
   onDragOverShelf: (shelf: ShelfTab, e: DragEvent<Element>) => void;
   onDropShelf: (shelf: ShelfTab, e: DragEvent<Element>) => void;
+  /** Native iPhone shell: fridge + freezer only (meat/fruit hidden; freezer shows all frozen). */
+  twoZoneOnly?: boolean;
 };
 
 function shelfCardClass(shelf: ShelfTab, tab: ShelfTab, isDragOver: boolean): string {
@@ -76,9 +78,14 @@ export function FridgeShelves({
   dragOver,
   onDragOverShelf,
   onDropShelf,
+  twoZoneOnly = false,
 }: Props) {
+  const asideGrid = twoZoneOnly
+    ? "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2 border-b border-black/[0.06] bg-white/90 py-2 backdrop-blur-md md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:border-0 md:bg-transparent md:py-1 md:backdrop-blur-none md:grid-rows-[auto_minmax(0,1.38fr)_minmax(0,1.1fr)]"
+    : "sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2 border-b border-black/[0.06] bg-white/90 py-2 backdrop-blur-md md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:border-0 md:bg-transparent md:py-1 md:backdrop-blur-none md:grid-rows-[auto_minmax(0,1.38fr)_minmax(0,0.873fr)_auto_minmax(0,0.873fr)_auto_minmax(0,0.873fr)]";
+
   return (
-    <aside className="sticky top-0 z-20 grid w-full shrink-0 select-none grid-cols-2 gap-2 border-b border-black/[0.06] bg-white/90 py-2 backdrop-blur-md md:top-2 md:h-full md:min-h-0 md:max-h-[calc(100dvh-1.25rem)] md:w-16 md:grid-cols-1 md:gap-2 md:self-start md:border-0 md:bg-transparent md:py-1 md:backdrop-blur-none md:grid-rows-[auto_minmax(0,1.38fr)_minmax(0,0.873fr)_auto_minmax(0,0.873fr)_auto_minmax(0,0.873fr)]">
+    <aside className={asideGrid}>
       <NextLink
         href="/settings"
         draggable={false}
@@ -126,39 +133,43 @@ export function FridgeShelves({
         <Count n={frozenCount} />
       </button>
 
-      <div className="hidden h-2 w-full shrink-0 md:block md:h-2.5" aria-hidden />
+      {twoZoneOnly ? null : (
+        <>
+          <div className="hidden h-2 w-full shrink-0 md:block md:h-2.5" aria-hidden />
 
-      <button
-        type="button"
-        draggable={false}
-        onClick={() => onTab("meat")}
-        onDragOver={(e) => onDragOverShelf("meat", e)}
-        onDrop={(e) => onDropShelf("meat", e)}
-        className={shelfCardClass("meat", tab, dragOver === "meat")}
-        aria-label={`Meat locker, ${meatCount} links`}
-      >
-        <span className="flex shrink-0 opacity-90" aria-hidden>
-          <IconMeatLocker className="h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5" />
-        </span>
-        <Count n={meatCount} />
-      </button>
+          <button
+            type="button"
+            draggable={false}
+            onClick={() => onTab("meat")}
+            onDragOver={(e) => onDragOverShelf("meat", e)}
+            onDrop={(e) => onDropShelf("meat", e)}
+            className={shelfCardClass("meat", tab, dragOver === "meat")}
+            aria-label={`Meat locker, ${meatCount} links`}
+          >
+            <span className="flex shrink-0 opacity-90" aria-hidden>
+              <IconMeatLocker className="h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5" />
+            </span>
+            <Count n={meatCount} />
+          </button>
 
-      <div className="hidden h-2 w-full shrink-0 md:block md:h-2.5" aria-hidden />
+          <div className="hidden h-2 w-full shrink-0 md:block md:h-2.5" aria-hidden />
 
-      <button
-        type="button"
-        draggable={false}
-        onClick={() => onTab("fruit")}
-        onDragOver={(e) => onDragOverShelf("fruit", e)}
-        onDrop={(e) => onDropShelf("fruit", e)}
-        className={shelfCardClass("fruit", tab, dragOver === "fruit")}
-        aria-label={`Fruit locker, ${fruitCount} links`}
-      >
-        <span className="flex shrink-0 opacity-90" aria-hidden>
-          <IconFruitLocker className="h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5" />
-        </span>
-        <Count n={fruitCount} />
-      </button>
+          <button
+            type="button"
+            draggable={false}
+            onClick={() => onTab("fruit")}
+            onDragOver={(e) => onDragOverShelf("fruit", e)}
+            onDrop={(e) => onDropShelf("fruit", e)}
+            className={shelfCardClass("fruit", tab, dragOver === "fruit")}
+            aria-label={`Fruit locker, ${fruitCount} links`}
+          >
+            <span className="flex shrink-0 opacity-90" aria-hidden>
+              <IconFruitLocker className="h-[1.15rem] w-[1.15rem] sm:h-5 sm:w-5" />
+            </span>
+            <Count n={fruitCount} />
+          </button>
+        </>
+      )}
     </aside>
   );
 }

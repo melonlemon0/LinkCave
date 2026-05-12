@@ -21,8 +21,14 @@
   <body>
     <p><strong>Link Fridge</strong></p>
     <p>
-      Set <code>CAPACITOR_SERVER_URL</code> to your production HTTPS URL, then run
-      <code>npx cap sync ios</code> and open the project in Xcode.
+      The app normally opens <strong>https://linkfridge.app</strong>. If you are seeing this page,
+      the remote site did not load (offline, DNS, or TLS). Check the connection and try again.
+    </p>
+    <p style="margin-top: 1.5rem; font-size: 0.9rem; color: #666">
+      Developers: the shell defaults to that URL in <code>capacitor.config.ts</code>. To use another
+      origin (for example local Next on port 3005), run
+      <code>CAPACITOR_SERVER_URL=http://127.0.0.1:3005 npm run ios:sync</code>, then open
+      <code>ios/App/App.xcworkspace</code> in Xcode.
     </p>
   </body>
 </html>

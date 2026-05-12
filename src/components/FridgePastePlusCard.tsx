@@ -5,16 +5,21 @@ import Image from "next/image";
 type Props = {
   disabled?: boolean;
   onPaste: () => void;
+  /** Fixed bottom bar on native iOS — tighter chrome, no extra vertical margin. */
+  variant?: "grid" | "floating";
 };
 
 /** Paste CTA — intentionally button-like (not a content card). */
-export function FridgePastePlusCard({ disabled, onPaste }: Props) {
+export function FridgePastePlusCard({ disabled, onPaste, variant = "grid" }: Props) {
+  const floating = variant === "floating";
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={() => void onPaste()}
-      className="group relative mx-auto mt-5 mb-3 flex items-center justify-center transition hover:scale-[1.03] active:scale-[99%] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+      className={`group relative mx-auto flex items-center justify-center transition hover:scale-[1.03] active:scale-[99%] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 ${
+        floating ? "mt-0 mb-0" : "mt-5 mb-3"
+      }`}
       aria-label="Paste link from clipboard"
     >
       <span
@@ -26,7 +31,7 @@ export function FridgePastePlusCard({ disabled, onPaste }: Props) {
         alt=""
         width={104}
         height={104}
-        className="relative z-0 h-24 w-24 object-contain drop-shadow-sm"
+        className={`relative z-0 object-contain drop-shadow-sm ${floating ? "h-[5.25rem] w-[5.25rem]" : "h-24 w-24"}`}
       />
     </button>
   );
